@@ -31,39 +31,30 @@ button{width:100%;margin-top:1rem;padding:.8rem;font-size:1rem;border:0;border-r
 <button type="submit">Sign in</button>
 </form>
 <div id="quote" class="hidden">
-<label>Footage</label>
-<select id="source">
-<option value="onfile">Graph already on file</option>
-<option value="new">New graph</option>
-<option value="typed" selected>Type the numbers</option>
+<label>Customer name</label>
+<input id="cname" autocomplete="name">
+<label>Address</label>
+<input id="caddress" autocomplete="street-address">
+<label>Telephone</label>
+<input id="cphone" inputmode="tel" autocomplete="tel">
+<label>What are you quoting?</label>
+<select id="service">
+<option value="pretreat">Pre-treatment</option>
+<option value="post">Post-treatment</option>
+<option value="pest">Pest service</option>
+<option value="other">Other / one-time</option>
 </select>
-<label>Square feet</label>
-<input id="sqft" inputmode="decimal" value="0">
-<label>Outside linear feet</label>
-<input id="lnft" inputmode="decimal" value="0">
-<label>Crawl or raised foundation</label>
-<select id="crawl"><option value="0">No</option><option value="1">Yes</option></select>
-<label>Travel miles, one way</label>
-<input id="miles" inputmode="decimal" value="0">
-<label>Rodent stations</label>
-<input id="stations" inputmode="numeric" value="0">
-<label>Include rat cleanout ($250)</label>
-<select id="rat"><option value="0">No</option><option value="1">Yes</option></select>
-<label>Drilling or foam linear feet (post-treatment)</label>
-<input id="drill" inputmode="decimal" value="0">
-<label>Include one-time pest</label>
-<select id="onetime"><option value="0">No</option><option value="1">Yes</option></select>
-<label>Include post-treatment</label>
-<select id="post"><option value="0">No</option><option value="1">Yes</option></select>
-<label>Include booster (30% off post-treatment)</label>
-<select id="booster"><option value="0">No</option><option value="1">Yes</option></select>
-<label>Include pre-treatment (20 cents per sq ft, $189 minimum)</label>
-<select id="pretreat"><option value="0">No</option><option value="1">Yes</option></select>
-<label>Include mosquito</label>
-<select id="mosquito"><option value="0">No</option><option value="1">Yes</option></select>
+<div id="panel"></div>
 <button type="button" id="calc">Show price</button>
-<div class="price" id="out">Pull a price after you enter the footage.</div>
-<p class="note">Write the item, this price, and the date on the ticket, then tell the office before the end of the day. One offer. If they say no, stop.</p>
+<div class="price" id="out">Pick a service, then show the price.</div>
+<label>Customer printed name</label>
+<input id="signname">
+<label>Date</label>
+<input id="signdate" type="date">
+<label>Customer signature</label>
+<canvas id="sign" width="600" height="160" style="width:100%;height:160px;background:#fff;border:1px solid #c9c2b2;border-radius:8px;touch-action:none"></canvas>
+<button type="button" id="clearsign" style="background:#6b6458">Clear signature</button>
+<p class="note">One offer. If they say yes, write the item, this price, and the date on the ticket and tell the office before the end of the day. If they say no, stop.</p>
 </div>
 </main>
 <script src="pricing.js"></script>

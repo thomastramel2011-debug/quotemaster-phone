@@ -48,6 +48,11 @@ function mosquito(sqft) {
   return money(sqft * RATES.mosquitoRate * RATES.mosquitoMultiplier);
 }
 
+function contractPest(sqft) {
+  const steps = Math.ceil(Math.max(0, sqft - 2500) / 1000);
+  return money(109 + 10 * (Number.isFinite(steps) ? steps : 0));
+}
+
 function oneTime(sqft) {
   if (sqft > RATES.oneTimeTopSqFt) {
     const steps = Math.ceil((sqft - RATES.oneTimeTopSqFt) / RATES.oneTimeStepSqFt);
