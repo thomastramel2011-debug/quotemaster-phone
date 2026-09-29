@@ -24,6 +24,8 @@ function render() {
     html += yesno("Also quote the yearly termite renewal", "renewal");
     html += yesno("Crawl or raised foundation", "crawl");
     html += field("Outside linear feet", "lnft", "0");
+    html += field("Inside Linear Footage", "inln", "0");
+    html += field("Pier Linear Footage", "pierln", "0");
     html += field("Travel miles, one way", "miles", "0");
   }
   if (service === "post") {
@@ -87,9 +89,10 @@ function quoteLines() {
   let note = "";
   if (service === "pretreat") lines.push(["Pre-treatment", pretreatPrice(sqft)]);
   if (service === "post") {
-    const post = postTreat(num("lnft"), num("drill"));
+    const linear = num("lnft") + num("inln") + num("pierln");
+    const post = postTreat(linear, num("drill"));
     lines.push(on("booster") ? ["Booster", money(post * 0.7)] : ["Post-treatment", post]);
-    note = "Post-treatment uses linear feet, not square feet. Square feet is only for the renewal offer.";
+    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate, plus drilled or foamed feet. Square feet is only for the renewal. Pre-treatment stays on square feet.";
   }
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
@@ -162,6 +165,8 @@ function detailLines() {
   };
   add("Square feet", "sqft");
   add("Outside linear feet", "lnft");
+  add("Inside Linear Footage", "inln");
+  add("Pier Linear Footage", "pierln");
   add("Drilled or foamed feet", "drill");
   add("Travel miles, one way", "miles");
   add("Stations", "stations");
@@ -391,29 +396,51 @@ function setSendNote(text, isError) {
   document.getElementById("sendbox").classList.remove("hidden");
 }
 
-document.getElementById("agree").addEventListener("click", () => {
+function sendReady() {
+  const name = document.getElementById("cname").value.trim();
+  const address = document.getElementById("caddress").value.trim();
+  const phone = document.getElementById("cphone").value.trim();
+  const email = document.getElementById("cemail").value.trim();
+  if (!name || !address || !phone || !email) return "Fill in the customer name, address, phone, and email first.";
+  if (signatureBlank()) return "The customer needs to sign before this can go out.";
+  const quote = quoteLines();
+  if (!quote.lines.length) return "Show a price before sending the agreement.";
+  return "";
+}
+
+function armSendLinks() {
+  const quote = quoteLines();
+  const mail = mailtoOfficeAndCustomer(quote);
+  const phone = document.getElementById("cphone").value.replace(/[^\d+]/g, "");
+  const textBody = "Family Termite service agreement is in the PDF that just downloaded. Please attach it to this text.";
+  document.getElementById("agree").setAttribute("href", mail);
+  document.getElementById("emailpdf").setAttribute("href", mail);
+  document.getElementById("textpdf").setAttribute("href", smsLink(phone, textBody));
+  document.getElementById("officecopy").setAttribute("href", mailtoOfficeCopy(quote));
+}
+
+["agree", "emailpdf", "textpdf"].forEach((id) => {
+  document.getElementById(id).addEventListener("pointerdown", () => {
+    if (sendReady()) return;
+    try { armSendLinks(); } catch (error) {}
+  });
+});
+
+document.getElementById("agree").addEventListener("click", (event) => {
   try {
-    const name = document.getElementById("cname").value.trim();
-    const address = document.getElementById("caddress").value.trim();
-    const phone = document.getElementById("cphone").value.trim();
-    const email = document.getElementById("cemail").value.trim();
-    if (!name || !address || !phone || !email) {
-      setSendNote("Fill in the customer name, address, phone, and email first.", true);
-      return;
-    }
-    if (signatureBlank()) {
-      setSendNote("The customer needs to sign before this can go out.", true);
+    const problem = sendReady();
+    if (problem) {
+      event.preventDefault();
+      setSendNote(problem, true);
       return;
     }
     const quote = showPrice();
-    if (!quote.lines.length) {
-      setSendNote("Show a price before sending the agreement.", true);
-      return;
-    }
     buildAgreementPdf(quote);
     downloadAgreement();
-    setSendNote("The PDF downloaded. Email or text sends it to the customer and always copies office@family-termite.com.");
+    armSendLinks();
+    setSendNote("The PDF downloaded. This tap opens the mail app to the customer, with office@family-termite.com copied. Attach the PDF, then send. The office copy cannot be left off.");
   } catch (error) {
+    event.preventDefault();
     setSendNote("The agreement did not go out. " + (error && error.message ? error.message : "Try again."), true);
   }
 });
@@ -422,39 +449,46 @@ document.getElementById("dlpdf").addEventListener("click", downloadAgreement);
 
 const OFFICE = "office@family-termite.com";
 
+function plainAddress(value) {
+  const email = String(value || "").trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("That email address cannot be opened in the mail app.");
+  }
+  return email;
+}
+
 function mailtoOfficeAndCustomer(quote) {
-  const email = document.getElementById("cemail").value.trim();
-  const body = agreementText(quote) + "\n\nThe PDF downloaded on this phone. Attach that file. This message always copies the office.";
-  return "mailto:" + encodeURIComponent(email) + "?cc=" + encodeURIComponent(OFFICE) + "&subject=" + encodeURIComponent("Family Termite service agreement") + "&body=" + encodeURIComponent(body);
+  const email = plainAddress(document.getElementById("cemail").value);
+  const body = agreementText(quote) + "\n\nThe PDF downloaded on this phone. Attach that file before you send. The office is copied on this message.";
+  return "mailto:" + email + "?cc=" + OFFICE + "&subject=" + encodeURIComponent("Family Termite service agreement") + "&body=" + encodeURIComponent(body);
 }
 
 function mailtoOfficeCopy(quote) {
   const name = document.getElementById("cname").value.trim();
   const body = "Office copy. This agreement was also sent to the customer.\n\n" + agreementText(quote) + "\n\nThe PDF downloaded on this phone. Attach " + agreementName + ".";
-  return "mailto:" + encodeURIComponent(OFFICE) + "?subject=" + encodeURIComponent("Office copy: " + name) + "&body=" + encodeURIComponent(body);
+  return "mailto:" + OFFICE + "?subject=" + encodeURIComponent("Office copy: " + name) + "&body=" + encodeURIComponent(body);
 }
 
-document.getElementById("emailpdf").addEventListener("click", () => {
-  if (!agreementBlob) {
+function smsLink(phone, body) {
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return ios
+    ? "sms:" + phone + "&body=" + encodeURIComponent(body)
+    : "sms:" + phone + "?body=" + encodeURIComponent(body);
+}
+
+document.getElementById("emailpdf").addEventListener("click", (event) => {
+  if (!agreementBlob || sendReady()) {
+    event.preventDefault();
     setSendNote("The agreement PDF is not ready yet. Tap Send as Agreement again.", true);
-    return;
   }
-  downloadAgreement();
-  const quote = quoteLines();
-  window.location.href = mailtoOfficeAndCustomer(quote);
-  setSendNote("The PDF downloaded. Email opens to the customer and always copies office@family-termite.com. Attach the PDF before you send.");
 });
 
-document.getElementById("textpdf").addEventListener("click", () => {
-  if (!agreementBlob) {
+document.getElementById("textpdf").addEventListener("click", (event) => {
+  if (!agreementBlob || sendReady()) {
+    event.preventDefault();
     setSendNote("The agreement PDF is not ready yet. Tap Send as Agreement again.", true);
     return;
   }
-  downloadAgreement();
-  const quote = quoteLines();
-  const phone = document.getElementById("cphone").value.replace(/[^\d+]/g, "");
-  const textBody = "Family Termite service agreement is in the PDF that just downloaded. Please attach it to this text.";
-  window.open(mailtoOfficeCopy(quote));
-  window.location.href = "sms:" + phone + "?&body=" + encodeURIComponent(textBody);
-  setSendNote("The PDF downloaded. The office copy opens to office@family-termite.com, then the customer text. Attach the PDF to both.");
+  window.open(document.getElementById("officecopy").getAttribute("href"));
+  setSendNote("The text app is opening to the customer. The office copy opens to office@family-termite.com. Attach the PDF to both.");
 });
