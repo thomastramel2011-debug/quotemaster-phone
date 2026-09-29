@@ -213,18 +213,109 @@ function agreementText(quote) {
 let agreementBlob = null;
 let agreementName = "Family-Termite-Agreement.pdf";
 
+function pdfEscape(text) {
+  return String(text).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function wrapPdfLine(text, size) {
+  const max = Math.max(24, Math.floor(504 / (size * 0.5)));
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let cur = "";
+  words.forEach((word) => {
+    const next = cur ? cur + " " + word : word;
+    if (next.length > max && cur) {
+      lines.push(cur);
+      cur = word;
+    } else {
+      cur = next;
+    }
+  });
+  if (cur || !lines.length) lines.push(cur);
+  return lines;
+}
+
+function dataUrlToBytes(dataUrl) {
+  const b64 = String(dataUrl).split(",")[1] || "";
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 255;
+  return bytes;
+}
+
+function jpegInfo(bytes) {
+  let i = 2;
+  while (i + 9 < bytes.length) {
+    if (bytes[i] !== 0xff) break;
+    const marker = bytes[i + 1];
+    if (marker === 0xd8 || marker === 0xd9) { i += 2; continue; }
+    const len = (bytes[i + 2] << 8) + bytes[i + 3];
+    if (marker === 0xc0 || marker === 0xc1 || marker === 0xc2) {
+      return {
+        height: (bytes[i + 5] << 8) + bytes[i + 6],
+        width: (bytes[i + 7] << 8) + bytes[i + 8],
+        components: bytes[i + 9]
+      };
+    }
+    if (!len) break;
+    i += 2 + len;
+  }
+  throw new Error("The signature image could not be read.");
+}
+
+function pdfDocument(content, jpeg, info) {
+  const chunks = [];
+  let pos = 0;
+  const offsets = [];
+  const add = (part) => {
+    chunks.push(part);
+    pos += part.length;
+  };
+  const obj = (body) => {
+    offsets.push(pos);
+    add(offsets.length + " 0 obj\n" + body + "\nendobj\n");
+  };
+  add("%PDF-1.4\n");
+  obj("<< /Type /Catalog /Pages 2 0 R >>");
+  obj("<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  obj("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Im1 7 0 R >> >> >>");
+  obj("<< /Length " + (content.length + 1) + " >>\nstream\n" + content + "\nendstream");
+  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const color = info.components === 1 ? "/DeviceGray" : "/DeviceRGB";
+  offsets.push(pos);
+  add("7 0 obj\n<< /Type /XObject /Subtype /Image /Width " + info.width + " /Height " + info.height + " /ColorSpace " + color + " /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.length + " >>\nstream\n");
+  add(jpeg);
+  add("\nendstream\nendobj\n");
+  const xrefAt = pos;
+  let xref = "xref\n0 8\n0000000000 65535 f \n";
+  offsets.forEach((off) => { xref += String(off).padStart(10, "0") + " 00000 n \n"; });
+  add(xref);
+  add("trailer << /Size 8 /Root 1 0 R >>\nstartxref\n" + xrefAt + "\n%%EOF");
+  const out = new Uint8Array(pos);
+  let at = 0;
+  chunks.forEach((chunk) => {
+    if (typeof chunk === "string") {
+      for (let i = 0; i < chunk.length; i++) out[at++] = chunk.charCodeAt(i) & 255;
+    } else {
+      out.set(chunk, at);
+      at += chunk.length;
+    }
+  });
+  return new Blob([out], { type: "application/pdf" });
+}
+
 function buildAgreementPdf(quote) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
-  const left = 54;
-  const width = 504;
-  let y = 64;
+  const commands = [];
+  let y = 728;
   const write = (text, size, bold) => {
-    doc.setFont("times", bold ? "bold" : "normal");
-    doc.setFontSize(size);
-    const parts = doc.splitTextToSize(text, width);
-    doc.text(parts, left, y);
-    y += parts.length * (size + 3) + 4;
+    const font = bold ? "/F2" : "/F1";
+    wrapPdfLine(text, size).forEach((part) => {
+      if (y < 48) return;
+      commands.push("BT " + font + " " + size + " Tf 54 " + y + " Td (" + pdfEscape(part) + ") Tj ET");
+      y -= size + 5;
+    });
+    y -= 3;
   };
   write("Family Termite", 20, true);
   write("Service agreement", 14, true);
@@ -247,16 +338,18 @@ function buildAgreementPdf(quote) {
   if (quote.note) write(quote.note, 10, false);
   y += 8;
   write("Customer signature", 12, true);
-  const png = signaturePng();
-  doc.addImage(png, "JPEG", left, y, 280, 74);
-  y += 86;
+  const jpeg = dataUrlToBytes(signaturePng());
+  const info = jpegInfo(jpeg);
+  const imgBottom = Math.max(48, y - 74);
+  commands.push("q 280 0 0 74 54 " + imgBottom + " cm /Im1 Do Q");
+  y = imgBottom - 16;
   const printed = document.getElementById("signname").value.trim() || document.getElementById("cname").value.trim();
   const date = document.getElementById("signdate").value || "";
   write("Printed name: " + printed, 12, false);
   write("Date: " + date, 12, false);
   write("The customer agrees to the service and the total price above at the address shown.", 11, false);
   write("A copy of this agreement goes to the office at office@family-termite.com.", 11, false);
-  agreementBlob = doc.output("blob");
+  agreementBlob = pdfDocument(commands.join("\n"), jpeg, info);
   const safe = document.getElementById("cname").value.trim().replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "customer";
   agreementName = "Family-Termite-Agreement-" + safe + ".pdf";
 }
@@ -291,31 +384,38 @@ async function shareAgreement() {
   }
 }
 
-function setSendNote(text) {
-  document.getElementById("sendnote").textContent = text;
+function setSendNote(text, isError) {
+  const note = document.getElementById("sendnote");
+  note.textContent = text;
+  note.classList.toggle("err", !!isError);
   document.getElementById("sendbox").classList.remove("hidden");
 }
 
 document.getElementById("agree").addEventListener("click", () => {
-  const name = document.getElementById("cname").value.trim();
-  const address = document.getElementById("caddress").value.trim();
-  const phone = document.getElementById("cphone").value.trim();
-  const email = document.getElementById("cemail").value.trim();
-  if (!name || !address || !phone || !email) {
-    setSendNote("Fill in the customer name, address, phone, and email first.");
-    return;
+  try {
+    const name = document.getElementById("cname").value.trim();
+    const address = document.getElementById("caddress").value.trim();
+    const phone = document.getElementById("cphone").value.trim();
+    const email = document.getElementById("cemail").value.trim();
+    if (!name || !address || !phone || !email) {
+      setSendNote("Fill in the customer name, address, phone, and email first.", true);
+      return;
+    }
+    if (signatureBlank()) {
+      setSendNote("The customer needs to sign before this can go out.", true);
+      return;
+    }
+    const quote = showPrice();
+    if (!quote.lines.length) {
+      setSendNote("Show a price before sending the agreement.", true);
+      return;
+    }
+    buildAgreementPdf(quote);
+    downloadAgreement();
+    setSendNote("The PDF downloaded. Email or text sends it to the customer and always copies office@family-termite.com.");
+  } catch (error) {
+    setSendNote("The agreement did not go out. " + (error && error.message ? error.message : "Try again."), true);
   }
-  if (signatureBlank()) {
-    setSendNote("The customer needs to sign before this can go out.");
-    return;
-  }
-  const quote = showPrice();
-  if (!quote.lines.length) {
-    setSendNote("Show a price before sending the agreement.");
-    return;
-  }
-  buildAgreementPdf(quote);
-  setSendNote("Agreement is ready. Email or text sends it to the customer and always copies office@family-termite.com.");
 });
 
 document.getElementById("dlpdf").addEventListener("click", downloadAgreement);
@@ -335,7 +435,10 @@ function mailtoOfficeCopy(quote) {
 }
 
 document.getElementById("emailpdf").addEventListener("click", () => {
-  if (!agreementBlob) return;
+  if (!agreementBlob) {
+    setSendNote("The agreement PDF is not ready yet. Tap Send as Agreement again.", true);
+    return;
+  }
   downloadAgreement();
   const quote = quoteLines();
   window.location.href = mailtoOfficeAndCustomer(quote);
@@ -343,7 +446,10 @@ document.getElementById("emailpdf").addEventListener("click", () => {
 });
 
 document.getElementById("textpdf").addEventListener("click", () => {
-  if (!agreementBlob) return;
+  if (!agreementBlob) {
+    setSendNote("The agreement PDF is not ready yet. Tap Send as Agreement again.", true);
+    return;
+  }
   downloadAgreement();
   const quote = quoteLines();
   const phone = document.getElementById("cphone").value.replace(/[^\d+]/g, "");
