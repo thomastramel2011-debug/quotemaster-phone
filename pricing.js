@@ -15,6 +15,8 @@ const RATES = {
   rodentBox: 25,
   ratCleanout: 250,
   pretreatPerSqFt: 0.20,
+  pretreatMin: 189,
+  boosterOff: 0.3,
   taxRate: 0.07,
   oneTimeMin: 209,
   oneTimeBaseSqFt: 2500,
@@ -23,9 +25,8 @@ const RATES = {
   oneTimeTopSqFt: 9500,
   oneTimeTop: 349,
   postMin: 690,
-  postLn: 3.65,
-  postDrill: 4,
-  postMult: 1.3
+  postPerFt: 4.745,
+  postDrillPerFt: 5.20
 };
 
 function money(n) {
@@ -57,8 +58,11 @@ function oneTime(sqft) {
 }
 
 function postTreat(ln, drillLn) {
-  const raw = (ln * RATES.postLn + drillLn * RATES.postDrill) * RATES.postMult;
+  const raw = ln * RATES.postPerFt + drillLn * RATES.postDrillPerFt;
   return money(Math.max(RATES.postMin, raw));
+}
+function pretreatPrice(sqft) {
+  return money(Math.max(RATES.pretreatMin, sqft * RATES.pretreatPerSqFt));
 }
 
 function quote(input) {
@@ -67,9 +71,10 @@ function quote(input) {
   const stations = money(input.stations * RATES.rodentBox);
   const rat = input.rat ? RATES.ratCleanout : 0;
   const oneTimePrice = input.oneTime ? oneTime(input.sqft) : 0;
-  const pretreat = input.pretreat ? money(input.sqft * RATES.pretreatPerSqFt) : 0;
+  const pretreat = input.pretreat ? money(pretreatPrice(input.sqft)) : 0;
   const post = input.post ? postTreat(input.lnft + (input.extraLn || 0), input.drillLn || 0) : 0;
-  const subtotal = money(renewal * (input.renewal ? 1 : 0) + mosquitoPrice + stations + rat + oneTimePrice + post + pretreat);
+  const booster = input.booster ? money(post * (1 - RATES.boosterOff)) : 0;
+  const subtotal = money(renewal * (input.renewal ? 1 : 0) + mosquitoPrice + stations + rat + oneTimePrice + (input.booster ? booster : post) + pretreat);
   return {
     renewal,
     sixMonth: money(renewal / 2),
@@ -78,6 +83,7 @@ function quote(input) {
     rat,
     oneTime: oneTimePrice,
     post,
+    booster,
     pretreat,
     subtotal,
     tax: money(subtotal * RATES.taxRate),

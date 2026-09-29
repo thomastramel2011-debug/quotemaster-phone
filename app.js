@@ -25,6 +25,7 @@ document.getElementById("calc").addEventListener("click", () => {
     mosquito: document.getElementById("mosquito").value === "1",
     oneTime: document.getElementById("onetime").value === "1",
     post: document.getElementById("post").value === "1",
+    booster: document.getElementById("booster").value === "1",
     pretreat: document.getElementById("pretreat").value === "1",
     drillLn: num("drill"),
     renewal: true
@@ -38,6 +39,7 @@ document.getElementById("calc").addEventListener("click", () => {
     line("Rat cleanout", result.rat) +
     line("One-time pest", result.oneTime) +
     line("Post-treatment", result.post) +
+    line("Booster", result.booster) +
     line("Pre-treatment", result.pretreat) +
     line("Before tax", result.subtotal) +
     line("Tax", result.tax) +
