@@ -48,6 +48,10 @@ function mosquito(sqft) {
 }
 
 function oneTime(sqft) {
+  if (sqft > RATES.oneTimeTopSqFt) {
+    const steps = Math.ceil((sqft - RATES.oneTimeTopSqFt) / RATES.oneTimeStepSqFt);
+    return money(RATES.oneTimeTop + RATES.oneTimeStep * steps);
+  }
   const steps = Math.ceil(Math.max(0, sqft - RATES.oneTimeBaseSqFt) / RATES.oneTimeStepSqFt);
   return money(Math.max(RATES.oneTimeMin, RATES.oneTimeMin + RATES.oneTimeStep * steps));
 }
