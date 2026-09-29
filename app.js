@@ -23,6 +23,10 @@ document.getElementById("calc").addEventListener("click", () => {
     stations: num("stations"),
     rat: document.getElementById("rat").value === "1",
     mosquito: document.getElementById("mosquito").value === "1",
+    oneTime: document.getElementById("onetime").value === "1",
+    post: document.getElementById("post").value === "1",
+    pretreat: document.getElementById("pretreat").value === "1",
+    drillLn: num("drill"),
     renewal: true
   });
   const line = (label, amount) => "<div>" + label + " <b>$" + amount.toFixed(2) + "</b></div>";
@@ -32,6 +36,9 @@ document.getElementById("calc").addEventListener("click", () => {
     line("Mosquito", result.mosquito) +
     line("Rodent stations", result.stations) +
     line("Rat cleanout", result.rat) +
+    line("One-time pest", result.oneTime) +
+    line("Post-treatment", result.post) +
+    line("Pre-treatment", result.pretreat) +
     line("Before tax", result.subtotal) +
     line("Tax", result.tax) +
     line("Total", result.total);
