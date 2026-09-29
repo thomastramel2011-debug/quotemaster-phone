@@ -37,6 +37,8 @@ button{width:100%;margin-top:1rem;padding:.8rem;font-size:1rem;border:0;border-r
 <input id="caddress" autocomplete="street-address">
 <label>Telephone</label>
 <input id="cphone" inputmode="tel" autocomplete="tel">
+<label>Customer email</label>
+<input id="cemail" type="email" inputmode="email" autocomplete="email">
 <label>What are you quoting?</label>
 <select id="service">
 <option value="pretreat">Pre-treatment</option>
@@ -54,10 +56,18 @@ button{width:100%;margin-top:1rem;padding:.8rem;font-size:1rem;border:0;border-r
 <label>Customer signature</label>
 <canvas id="sign" width="600" height="160" style="width:100%;height:160px;background:#fff;border:1px solid #c9c2b2;border-radius:8px;touch-action:none"></canvas>
 <button type="button" id="clearsign" style="background:#6b6458">Clear signature</button>
+<button type="button" id="agree">Send as Agreement</button>
+<div id="sendbox" class="hidden">
+<p id="sendnote" class="note"></p>
+<button type="button" id="dlpdf" style="background:#3d4f3a">Download PDF</button>
+<button type="button" id="emailpdf">Email customer</button>
+<button type="button" id="textpdf">Text customer</button>
+</div>
 <p class="note">One offer. If they say yes, write the item, this price, and the date on the ticket and tell the office before the end of the day. If they say no, stop.</p>
 </div>
 </main>
 <script src="pricing.js"></script>
+<script src="jspdf.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
