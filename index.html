@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Termite Quote</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f4f1ea;color:#1c1915}
+main{max-width:28rem;margin:0 auto;padding:1rem 1rem 3rem}
+h1{font-size:1.25rem;margin:0 0 .25rem}
+label{display:block;font-size:.85rem;margin:.7rem 0 .2rem}
+input,select{width:100%;font-size:1rem;padding:.6rem;border:1px solid #c9c2b2;border-radius:8px;box-sizing:border-box}
+button{width:100%;margin-top:1rem;padding:.8rem;font-size:1rem;border:0;border-radius:8px;background:#2f5d3a;color:#fff}
+.price{background:#fff;border-radius:10px;padding:.8rem 1rem;margin-top:1rem}
+.price b{font-size:1.3rem}
+.hidden{display:none}
+.note{font-size:.8rem;color:#5c564c}
+.err{color:#8a2a1a;font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Family Termite quote</h1>
+<form id="login">
+<p class="note">One login for all techs.</p>
+<label>Username</label>
+<input id="user" autocomplete="username">
+<label>Password</label>
+<input id="password" type="password" autocomplete="current-password">
+<p id="err" class="err"></p>
+<button type="submit">Sign in</button>
+</form>
+<div id="quote" class="hidden">
+<label>Footage</label>
+<select id="source">
+<option value="onfile">Graph already on file</option>
+<option value="new">New graph</option>
+<option value="typed" selected>Type the numbers</option>
+</select>
+<label>Square feet</label>
+<input id="sqft" inputmode="decimal" value="0">
+<label>Outside linear feet</label>
+<input id="lnft" inputmode="decimal" value="0">
+<label>Crawl or raised foundation</label>
+<select id="crawl"><option value="0">No</option><option value="1">Yes</option></select>
+<label>Travel miles, one way</label>
+<input id="miles" inputmode="decimal" value="0">
+<label>Rodent stations</label>
+<input id="stations" inputmode="numeric" value="0">
+<label>Include rat cleanout ($250)</label>
+<select id="rat"><option value="0">No</option><option value="1">Yes</option></select>
+<label>Include mosquito</label>
+<select id="mosquito"><option value="0">No</option><option value="1">Yes</option></select>
+<button type="button" id="calc">Show price</button>
+<div class="price" id="out">Pull a price after you enter the footage.</div>
+<p class="note">Write the item, this price, and the date on the ticket, then tell the office before the end of the day. One offer. If they say no, stop.</p>
+</div>
+</main>
+<script src="pricing.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
