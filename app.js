@@ -24,18 +24,18 @@ function render() {
   const service = document.getElementById("service").value;
   let html = field("Square feet", "sqft", "0");
   if (service === "pretreat" || service === "post") {
-    html += yesno("Also quote the yearly termite renewal", "renewal");
-    html += yesno("Crawl or raised foundation", "crawl");
-    html += field("Outside linear feet", "lnft", "0");
-    html += field("Inside Linear Footage", "inln", "0");
-    html += field("Pier Linear Footage", "pierln", "0");
-    html += field("Travel miles, one way", "miles", "0");
+    html += yesno("Yearly renewal", "renewal");
+    html += yesno("Crawl or raised", "crawl");
+    html += field("Outside linear ft", "lnft", "0");
+    html += field("Inside linear ft", "inln", "0");
+    html += field("Pier linear ft", "pierln", "0");
+    html += field("Miles, one way", "miles", "0");
   }
   if (service === "post") {
-    html += field("Drilled or foamed feet", "drill", "0");
+    html += field("Drilled or foamed ft", "drill", "0");
     html += field("Expansion joints", "expjoints", "0");
     html += field("BV to drill", "bvdrill", "0");
-    html += yesno("Booster instead (30% off)", "booster");
+    html += yesno("Booster, 30% off", "booster");
   }
   if (service === "pest") {
     html += "<div class=\"cell\"><label>How often</label><select id=\"freq\">" +
@@ -101,7 +101,7 @@ function quoteLines() {
     const bvFt = num("bvdrill");
     if (expFt) lines.push(["Expansion joints, " + expFt + " ft", drillCharge(expFt)]);
     if (bvFt) lines.push(["BV to drill, " + bvFt + " ft", drillCharge(bvFt)]);
-    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate, plus drilled or foamed feet. Expansion joints and BV to drill bill at the drill rate only and are not added to that linear footage. Square feet is only for the renewal. The booster is 30% off the post-treatment price.";
+    note = "Outside, inside, and pier feet use the sheet rate, plus drilled or foamed feet. Expansion joints and BV to drill bill at the drill rate only and are not added to those feet. The booster is 30% off post-treatment.";
   }
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
@@ -338,7 +338,7 @@ function pdfDocument(content, jpeg, info) {
 
 function buildAgreementPdf(quote) {
   const commands = [];
-  let y = 752;
+  let y = 768;
   const centerText = (text, size, font) => {
     const width = String(text).length * size * (font === "/F3" ? 0.46 : 0.5);
     let x = (612 - width) / 2;
@@ -384,11 +384,11 @@ function buildAgreementPdf(quote) {
   const write = (text, size, bold) => {
     const font = bold ? "/F2" : "/F1";
     wrapPdfLine(text, size).forEach((part) => {
-      if (y < 48) return;
+      if (y < 36) return;
       commands.push("BT " + font + " " + size + " Tf 40 " + y.toFixed(2) + " Td (" + pdfEscape(part) + ") Tj ET");
-      y -= size + 4;
+      y -= size + 3;
     });
-    y -= 2;
+    y -= 1;
   };
   write("Customer: " + document.getElementById("cname").value.trim(), 12, false);
   write("Address: " + document.getElementById("caddress").value.trim(), 12, false);
