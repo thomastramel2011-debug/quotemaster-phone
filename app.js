@@ -11,10 +11,13 @@ document.getElementById("login").addEventListener("submit", (event) => {
 });
 
 function field(label, id, value) {
-  return "<label>" + label + "</label><input id=\"" + id + "\" inputmode=\"decimal\" value=\"" + value + "\">";
+  return "<div class=\"cell\"><label>" + label + "</label><input id=\"" + id + "\" inputmode=\"decimal\" value=\"" + value + "\"></div>";
 }
 function yesno(label, id) {
-  return "<label>" + label + "</label><select id=\"" + id + "\"><option value=\"0\">No</option><option value=\"1\">Yes</option></select>";
+  return "<div class=\"cell\"><label>" + label + "</label><select id=\"" + id + "\"><option value=\"0\">No</option><option value=\"1\">Yes</option></select></div>";
+}
+function drillCharge(feet) {
+  return money(feet * RATES.postDrillPerFt);
 }
 
 function render() {
@@ -30,24 +33,26 @@ function render() {
   }
   if (service === "post") {
     html += field("Drilled or foamed feet", "drill", "0");
+    html += field("Expansion joints", "expjoints", "0");
+    html += field("BV to drill", "bvdrill", "0");
     html += yesno("Booster instead (30% off)", "booster");
   }
   if (service === "pest") {
-    html += "<label>How often</label><select id=\"freq\">" +
+    html += "<div class=\"cell\"><label>How often</label><select id=\"freq\">" +
       "<option value=\"monthly\">Monthly</option>" +
       "<option value=\"bimonthly\">Every other month</option>" +
       "<option value=\"quarterly\">Quarterly</option>" +
       "<option value=\"semiannual\">Every six months</option>" +
       "<option value=\"annual\">Once a year</option>" +
-      "<option value=\"onetime\">One-time pest</option></select>" +
+      "<option value=\"onetime\">One-time pest</option></select></div>" +
       "<p class=\"note\">The contract price on the sheet is per service: $109 up to 2,500 sq ft, then $10 per started 1,000. One-time pest is a separate price on the sheet, not a contract frequency.</p>";
   }
   if (service === "other") {
-    html = "<label>Which one</label><select id=\"other\">" +
+    html = "<div class=\"cell span2\"><label>Which one</label><select id=\"other\">" +
       "<option value=\"mosquito\">Mosquito</option>" +
       "<option value=\"rodent\">Rodent stations</option>" +
       "<option value=\"rat\">Rat cleanout</option>" +
-      "<option value=\"onetime\">One-time pest</option></select>" +
+      "<option value=\"onetime\">One-time pest</option></select></div>" +
       "<div id=\"otherfields\"></div>";
   }
   document.getElementById("panel").innerHTML = html;
@@ -79,7 +84,7 @@ function on(id) {
   return !!(el && el.value === "1");
 }
 function line(label, amount) {
-  return "<div>" + label + " <b>$" + amount.toFixed(2) + "</b></div>";
+  return "<div class=\"row\"><span>" + label + "</span><b>" + dollars(amount) + "</b></div>";
 }
 
 function quoteLines() {
@@ -92,7 +97,11 @@ function quoteLines() {
     const linear = num("lnft") + num("inln") + num("pierln");
     const post = postTreat(linear, num("drill"));
     lines.push(on("booster") ? ["Booster", money(post * 0.7)] : ["Post-treatment", post]);
-    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate, plus drilled or foamed feet. Square feet is only for the renewal. Pre-treatment stays on square feet.";
+    const expFt = num("expjoints");
+    const bvFt = num("bvdrill");
+    if (expFt) lines.push(["Expansion joints, " + expFt + " ft", drillCharge(expFt)]);
+    if (bvFt) lines.push(["BV to drill, " + bvFt + " ft", drillCharge(bvFt)]);
+    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate, plus drilled or foamed feet. Expansion joints and BV to drill bill at the drill rate only and are not added to that linear footage. Square feet is only for the renewal. The booster is 30% off the post-treatment price.";
   }
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
@@ -114,9 +123,20 @@ function quoteLines() {
 
 function showPrice() {
   const quote = quoteLines();
-  let html = quote.lines.map((row) => line(row[0], row[1])).join("");
+  if (!quote.lines.length) {
+    document.getElementById("out").textContent = "Pick a service, then show the price.";
+    return quote;
+  }
+  const subtotal = money(quote.lines.reduce((sum, row) => sum + row[1], 0));
+  const tax = money(subtotal * RATES.taxRate);
+  const total = money(subtotal + tax);
+  let html = "<div class=\"costhead\">The combined cost of your protection</div>";
+  html += quote.lines.map((row) => line(row[0], row[1])).join("");
+  html += line("Subtotal", subtotal);
+  html += line("Sales tax 7%", tax);
+  html += "<div class=\"row total\"><span>Total</span><b>" + dollars(total) + "</b></div>";
   if (quote.note) html += "<p class=\"note\">" + quote.note + "</p>";
-  document.getElementById("out").innerHTML = html || "Pick a service, then show the price.";
+  document.getElementById("out").innerHTML = html;
   return quote;
 }
 
@@ -168,6 +188,8 @@ function detailLines() {
   add("Inside Linear Footage", "inln");
   add("Pier Linear Footage", "pierln");
   add("Drilled or foamed feet", "drill");
+  add("Expansion joints", "expjoints", " ft");
+  add("BV to drill", "bvdrill", " ft");
   add("Travel miles, one way", "miles");
   add("Stations", "stations");
   const crawl = document.getElementById("crawl");
@@ -203,7 +225,9 @@ function agreementText(quote) {
   const tax = money(subtotal * RATES.taxRate);
   const total = money(subtotal + tax);
   return [
-    "Family Termite service agreement",
+    "Family Termite & Environmental Services",
+    "Brandon, Ms. • 601-933-1014",
+    "Integrated Pest Management Service Agreement",
     name,
     document.getElementById("caddress").value.trim(),
     document.getElementById("cphone").value.trim(),
@@ -219,7 +243,7 @@ let agreementBlob = null;
 let agreementName = "Family-Termite-Agreement.pdf";
 
 function pdfEscape(text) {
-  return String(text).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  return String(text).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\u2022/g, "\\225");
 }
 
 function wrapPdfLine(text, size) {
@@ -283,20 +307,22 @@ function pdfDocument(content, jpeg, info) {
   add("%PDF-1.4\n");
   obj("<< /Type /Catalog /Pages 2 0 R >>");
   obj("<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  obj("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Im1 7 0 R >> >> >>");
+  obj("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R /F4 8 0 R >> /XObject << /Im1 9 0 R >> >> >>");
   obj("<< /Length " + (content.length + 1) + " >>\nstream\n" + content + "\nendstream");
-  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>");
+  obj("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>");
   const color = info.components === 1 ? "/DeviceGray" : "/DeviceRGB";
   offsets.push(pos);
-  add("7 0 obj\n<< /Type /XObject /Subtype /Image /Width " + info.width + " /Height " + info.height + " /ColorSpace " + color + " /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.length + " >>\nstream\n");
+  add("9 0 obj\n<< /Type /XObject /Subtype /Image /Width " + info.width + " /Height " + info.height + " /ColorSpace " + color + " /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.length + " >>\nstream\n");
   add(jpeg);
   add("\nendstream\nendobj\n");
   const xrefAt = pos;
-  let xref = "xref\n0 8\n0000000000 65535 f \n";
+  let xref = "xref\n0 10\n0000000000 65535 f \n";
   offsets.forEach((off) => { xref += String(off).padStart(10, "0") + " 00000 n \n"; });
   add(xref);
-  add("trailer << /Size 8 /Root 1 0 R >>\nstartxref\n" + xrefAt + "\n%%EOF");
+  add("trailer << /Size 10 /Root 1 0 R >>\nstartxref\n" + xrefAt + "\n%%EOF");
   const out = new Uint8Array(pos);
   let at = 0;
   chunks.forEach((chunk) => {
@@ -312,18 +338,58 @@ function pdfDocument(content, jpeg, info) {
 
 function buildAgreementPdf(quote) {
   const commands = [];
-  let y = 728;
+  let y = 752;
+  const centerText = (text, size, font) => {
+    const width = String(text).length * size * (font === "/F3" ? 0.46 : 0.5);
+    let x = (612 - width) / 2;
+    if (x < 36) x = 36;
+    commands.push("BT " + font + " " + size + " Tf " + x.toFixed(2) + " " + y.toFixed(2) + " Td (" + pdfEscape(text) + ") Tj ET");
+    y -= size + 3;
+  };
+  const rule = (weight, gapAfter) => {
+    commands.push(weight + " w 40 " + y.toFixed(2) + " m 572 " + y.toFixed(2) + " l S");
+    y -= gapAfter;
+  };
+  centerText("Family Termite & Environmental Services", 16, "/F3");
+  y -= 1;
+  centerText("Brandon, Ms. \u2022 601-933-1014", 10, "/F1");
+  y -= 2;
+  centerText("Integrated Pest Management Service Agreement", 11, "/F4");
+  y -= 4;
+  rule(1.8, 3);
+  rule(0.6, 12);
+  const legalLeft = [
+    "In force for one year, then month to month. Cancel",
+    "in writing at least 30 days before the term ends.",
+    "Covers only the premises and pests specified below."
+  ];
+  const legalRight = [
+    "No guarantee against present or future pest damage.",
+    "Does not pay for repairs or other compensation.",
+    "Not liable for stings or bites to people or pets."
+  ];
+  const legalStart = y;
+  legalLeft.forEach((part, i) => {
+    commands.push("BT /F1 8 Tf 40 " + (legalStart - i * 11).toFixed(2) + " Td (" + pdfEscape(part) + ") Tj ET");
+  });
+  legalRight.forEach((part, i) => {
+    commands.push("BT /F1 8 Tf 316 " + (legalStart - i * 11).toFixed(2) + " Td (" + pdfEscape(part) + ") Tj ET");
+  });
+  y = legalStart - legalLeft.length * 11 - 4;
+  const banner = "THIS AGREEMENT COVERS ONLY THE PREMISES AND PESTS SPECIFIED BELOW";
+  const bannerX = (612 - banner.length * 8 * 0.5) / 2;
+  commands.push("0.9 w 40 " + (y - 4).toFixed(2) + " 532 15 re S");
+  commands.push("BT /F2 8 Tf " + bannerX.toFixed(2) + " " + y.toFixed(2) + " Td (" + pdfEscape(banner) + ") Tj ET");
+  y -= 20;
   const write = (text, size, bold) => {
     const font = bold ? "/F2" : "/F1";
     wrapPdfLine(text, size).forEach((part) => {
       if (y < 48) return;
-      commands.push("BT " + font + " " + size + " Tf 54 " + y + " Td (" + pdfEscape(part) + ") Tj ET");
-      y -= size + 5;
+      commands.push("BT " + font + " " + size + " Tf 40 " + y.toFixed(2) + " Td (" + pdfEscape(part) + ") Tj ET");
+      y -= size + 4;
     });
-    y -= 3;
+    y -= 2;
   };
-  write("Family Termite", 20, true);
-  write("Service agreement", 14, true);
   write("Customer: " + document.getElementById("cname").value.trim(), 12, false);
   write("Address: " + document.getElementById("caddress").value.trim(), 12, false);
   write("Telephone: " + document.getElementById("cphone").value.trim(), 12, false);
@@ -346,7 +412,7 @@ function buildAgreementPdf(quote) {
   const jpeg = dataUrlToBytes(signaturePng());
   const info = jpegInfo(jpeg);
   const imgBottom = Math.max(48, y - 74);
-  commands.push("q 280 0 0 74 54 " + imgBottom + " cm /Im1 Do Q");
+  commands.push("q 280 0 0 74 40 " + imgBottom + " cm /Im1 Do Q");
   y = imgBottom - 16;
   const printed = document.getElementById("signname").value.trim() || document.getElementById("cname").value.trim();
   const date = document.getElementById("signdate").value || "";
