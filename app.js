@@ -17,6 +17,12 @@ function yesno(label, id) {
   return "<label>" + label + "</label><select id=\"" + id + "\"><option value=\"0\">No</option><option value=\"1\">Yes</option></select>";
 }
 
+// Sheet columns C-EJ and C-BV. Priced only at the drilled rate, not also at $4.745.
+const POST_EXTRAS = [
+  ["Expansion joints, linear feet", "ej"],
+  ["BV to drill, linear feet", "bv"]
+];
+
 function render() {
   const service = document.getElementById("service").value;
   let html = field("Square feet", "sqft", "0");
@@ -30,6 +36,7 @@ function render() {
   }
   if (service === "post") {
     html += field("Drilled or foamed feet", "drill", "0");
+    POST_EXTRAS.forEach((row) => { html += field(row[0], row[1], "0"); });
     html += yesno("Booster instead (30% off)", "booster");
   }
   if (service === "pest") {
@@ -90,9 +97,10 @@ function quoteLines() {
   if (service === "pretreat") lines.push(["Pre-treatment", pretreatPrice(sqft)]);
   if (service === "post") {
     const linear = num("lnft") + num("inln") + num("pierln");
-    const post = postTreat(linear, num("drill"));
+    const drilled = num("drill") + POST_EXTRAS.reduce((sum, row) => sum + num(row[1]), 0);
+    const post = postTreat(linear, drilled);
     lines.push(on("booster") ? ["Booster", money(post * 0.7)] : ["Post-treatment", post]);
-    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate, plus drilled or foamed feet. Square feet is only for the renewal. Pre-treatment stays on square feet.";
+    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate. Drilled or foamed feet, expansion joints, and BV to drill are billed only at the drilled rate. Square feet is only for the renewal. Pre-treatment stays on square feet.";
   }
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
@@ -115,6 +123,10 @@ function quoteLines() {
 function showPrice() {
   const quote = quoteLines();
   let html = quote.lines.map((row) => line(row[0], row[1])).join("");
+  POST_EXTRAS.forEach((row) => {
+    const el = document.getElementById(row[1]);
+    if (el) html += "<div>" + row[0] + ": " + (el.value || "0") + "</div>";
+  });
   if (quote.note) html += "<p class=\"note\">" + quote.note + "</p>";
   document.getElementById("out").innerHTML = html || "Pick a service, then show the price.";
   return quote;
@@ -168,6 +180,7 @@ function detailLines() {
   add("Inside Linear Footage", "inln");
   add("Pier Linear Footage", "pierln");
   add("Drilled or foamed feet", "drill");
+  POST_EXTRAS.forEach((row) => add(row[0], row[1]));
   add("Travel miles, one way", "miles");
   add("Stations", "stations");
   const crawl = document.getElementById("crawl");
