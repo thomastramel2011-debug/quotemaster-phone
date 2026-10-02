@@ -22,6 +22,28 @@ const POST_EXTRAS = [
   ["BV to drill, linear feet", "bv"]
 ];
 
+const TERM_YEAR = "This agreement stays in force for one year and then year to year. Either party may cancel it in writing at least 30 days before the term ends.";
+const TERM_MONTH = "This agreement stays in force month to month. Either party may cancel it in writing at least 30 days before the term ends.";
+const TERM_VISIT = "This agreement stays in force service to service, for this visit only.";
+
+function agreementTerm() {
+  const service = document.getElementById("service").value;
+  if (service === "pretreat" || service === "post") return TERM_YEAR;
+  if (service === "pest") {
+    const freq = document.getElementById("freq");
+    return freq && freq.value === "onetime" ? TERM_VISIT : TERM_MONTH;
+  }
+  const other = document.getElementById("other");
+  const kind = other ? other.value : "";
+  if (kind === "rat" || kind === "onetime") return TERM_VISIT;
+  return TERM_MONTH;
+}
+
+function updateTerm() {
+  const el = document.getElementById("term");
+  if (el) el.textContent = agreementTerm();
+}
+
 function render() {
   const service = document.getElementById("service").value;
   let html = field("Square feet", "sqft", "0");
@@ -66,11 +88,15 @@ function render() {
       if (kind === "mosquito" || kind === "onetime") extra = field("Square feet", "sqft", "0");
       if (kind === "rodent") extra = field("Number of stations", "stations", "0");
       document.getElementById("otherfields").innerHTML = extra;
+      updateTerm();
     };
     other.addEventListener("change", fill);
     fill();
   }
+  const freq = document.getElementById("freq");
+  if (freq) freq.addEventListener("change", updateTerm);
   document.getElementById("out").textContent = "Pick a service, then show the price.";
+  updateTerm();
 }
 
 document.getElementById("service").addEventListener("change", render);
@@ -249,8 +275,8 @@ function pdfEscape(text) {
   return String(text).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\u2022/g, "\\225");
 }
 
-function wrapPdfLine(text, size) {
-  const max = Math.max(24, Math.floor(504 / (size * 0.5)));
+function wrapPdfLine(text, size, maxChars) {
+  const max = maxChars || Math.max(24, Math.floor(504 / (size * 0.5)));
   const words = String(text).split(/\s+/);
   const lines = [];
   let cur = "";
@@ -361,24 +387,22 @@ function buildAgreementPdf(quote) {
   y -= 4;
   rule(1.8, 3);
   rule(0.6, 12);
-  const legalLeft = [
-    "In force for one year, then month to month. Cancel",
-    "in writing at least 30 days before the term ends.",
-    "Covers only the premises and pests specified below."
-  ];
+  const legalLeft = wrapPdfLine(agreementTerm(), 8, 52);
+  legalLeft.push("Covers only the premises and pests specified below.");
   const legalRight = [
     "No guarantee against present or future pest damage.",
     "Does not pay for repairs or other compensation.",
     "Not liable for stings or bites to people or pets."
   ];
   const legalStart = y;
+  const legalRows = Math.max(legalLeft.length, legalRight.length);
   legalLeft.forEach((part, i) => {
     commands.push("BT /F1 8 Tf 40 " + (legalStart - i * 11).toFixed(2) + " Td (" + pdfEscape(part) + ") Tj ET");
   });
   legalRight.forEach((part, i) => {
     commands.push("BT /F1 8 Tf 316 " + (legalStart - i * 11).toFixed(2) + " Td (" + pdfEscape(part) + ") Tj ET");
   });
-  y = legalStart - legalLeft.length * 11 - 4;
+  y = legalStart - legalRows * 11 - 4;
   const banner = "THIS AGREEMENT COVERS ONLY THE PREMISES AND PESTS SPECIFIED BELOW";
   const bannerX = (612 - banner.length * 8 * 0.5) / 2;
   commands.push("0.9 w 40 " + (y - 4).toFixed(2) + " 532 15 re S");
@@ -561,3 +585,5 @@ document.getElementById("textpdf").addEventListener("click", (event) => {
   window.open(document.getElementById("officecopy").getAttribute("href"));
   setSendNote("The text app is opening to the customer. The office copy opens to office@family-termite.com. Attach the PDF to both.");
 });
+
+updateTerm();
