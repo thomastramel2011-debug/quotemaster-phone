@@ -16,9 +16,11 @@ function field(label, id, value) {
 function yesno(label, id) {
   return "<div class=\"cell\"><label>" + label + "</label><select id=\"" + id + "\"><option value=\"0\">No</option><option value=\"1\">Yes</option></select></div>";
 }
-function drillCharge(feet) {
-  return money(feet * RATES.postDrillPerFt);
-}
+// Sheet columns C-EJ and C-BV. Priced only at the drilled rate, not also at the linear-foot rate.
+const POST_EXTRAS = [
+  ["Expansion joints, linear feet", "ej"],
+  ["BV to drill, linear feet", "bv"]
+];
 
 function render() {
   const service = document.getElementById("service").value;
@@ -33,8 +35,8 @@ function render() {
   }
   if (service === "post") {
     html += field("Drilled or foamed ft", "drill", "0");
-    html += field("Expansion joints", "expjoints", "0");
-    html += field("BV to drill", "bvdrill", "0");
+    html += field("Expansion joints", "ej", "0");
+    html += field("BV to drill", "bv", "0");
     html += yesno("Booster, 30% off", "booster");
   }
   if (service === "pest") {
@@ -95,13 +97,10 @@ function quoteLines() {
   if (service === "pretreat") lines.push(["Pre-treatment", pretreatPrice(sqft)]);
   if (service === "post") {
     const linear = num("lnft") + num("inln") + num("pierln");
-    const post = postTreat(linear, num("drill"));
+    const drilled = num("drill") + POST_EXTRAS.reduce((sum, row) => sum + num(row[1]), 0);
+    const post = postTreat(linear, drilled);
     lines.push(on("booster") ? ["Booster", money(post * 0.7)] : ["Post-treatment", post]);
-    const expFt = num("expjoints");
-    const bvFt = num("bvdrill");
-    if (expFt) lines.push(["Expansion joints, " + expFt + " ft", drillCharge(expFt)]);
-    if (bvFt) lines.push(["BV to drill, " + bvFt + " ft", drillCharge(bvFt)]);
-    note = "Outside, inside, and pier feet use the sheet rate, plus drilled or foamed feet. Expansion joints and BV to drill bill at the drill rate only and are not added to those feet. The booster is 30% off post-treatment.";
+    note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate. Drilled or foamed feet, expansion joints, and BV to drill are billed only at the drilled rate. Square feet is only for the renewal. Pre-treatment stays on square feet.";
   }
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
@@ -132,6 +131,11 @@ function showPrice() {
   const total = money(subtotal + tax);
   let html = "<div class=\"costhead\">The combined cost of your protection</div>";
   html += quote.lines.map((row) => line(row[0], row[1])).join("");
+  POST_EXTRAS.forEach((row) => {
+    const feet = num(row[1]);
+    if (!feet) return;
+    html += "<div class=\"row\"><span>" + row[0] + "</span><b>" + feet + " ft included</b></div>";
+  });
   html += line("Subtotal", subtotal);
   html += line("Sales tax 7%", tax);
   html += "<div class=\"row total\"><span>Total</span><b>" + dollars(total) + "</b></div>";
@@ -188,8 +192,7 @@ function detailLines() {
   add("Inside Linear Footage", "inln");
   add("Pier Linear Footage", "pierln");
   add("Drilled or foamed feet", "drill");
-  add("Expansion joints", "expjoints", " ft");
-  add("BV to drill", "bvdrill", " ft");
+  POST_EXTRAS.forEach((row) => add(row[0], row[1]));
   add("Travel miles, one way", "miles");
   add("Stations", "stations");
   const crawl = document.getElementById("crawl");

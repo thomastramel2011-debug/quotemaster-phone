@@ -63,7 +63,11 @@ function oneTime(sqft) {
 }
 
 function postTreat(ln, drillLn) {
-  const raw = ln * RATES.postPerFt + drillLn * RATES.postDrillPerFt;
+  // Thousandths of a dollar keep $4.745 and $5.20 on the cent.
+  // 411 ft at $4.745 plus 100 drilled ft is $2,470.20, not $2,470.19.
+  const regularThou = ln * Math.round(RATES.postPerFt * 1000);
+  const drillThou = drillLn * Math.round(RATES.postDrillPerFt * 1000);
+  const raw = Math.round((regularThou + drillThou) / 10) / 100;
   return money(Math.max(RATES.postMin, raw));
 }
 function pretreatPrice(sqft) {
@@ -77,7 +81,8 @@ function quote(input) {
   const rat = input.rat ? RATES.ratCleanout : 0;
   const oneTimePrice = input.oneTime ? oneTime(input.sqft) : 0;
   const pretreat = input.pretreat ? money(pretreatPrice(input.sqft)) : 0;
-  const post = input.post ? postTreat(input.lnft + (input.extraLn || 0), input.drillLn || 0) : 0;
+  const drillTotal = (input.drillLn || 0) + (input.ejLn || 0) + (input.bvLn || 0);
+  const post = input.post ? postTreat(input.lnft + (input.extraLn || 0), drillTotal) : 0;
   const booster = input.booster ? money(post * (1 - RATES.boosterOff)) : 0;
   const subtotal = money(renewal * (input.renewal ? 1 : 0) + mosquitoPrice + stations + rat + oneTimePrice + (input.booster ? booster : post) + pretreat);
   return {
