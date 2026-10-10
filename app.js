@@ -59,7 +59,7 @@ function render() {
     html += field("Drilled or foamed ft", "drill", "0");
     html += field("Expansion joints", "ej", "0");
     html += field("BV to drill", "bv", "0");
-    html += yesno("Booster, 30% off", "booster");
+    html += yesno("Booster, 40% of post-treat", "booster");
   }
   if (service === "pest") {
     html += "<div class=\"cell\"><label>How often</label><select id=\"freq\">" +
@@ -125,7 +125,7 @@ function quoteLines() {
     const linear = num("lnft") + num("inln") + num("pierln");
     const drilled = num("drill") + POST_EXTRAS.reduce((sum, row) => sum + num(row[1]), 0);
     const post = postTreat(linear, drilled);
-    lines.push(on("booster") ? ["Booster", money(post * 0.7)] : ["Post-treatment", post]);
+    lines.push(on("booster") ? ["Booster", money(post * 0.4)] : ["Post-treatment", post]);
     note = "Post-treatment is outside, inside, and pier linear feet at the sheet rate. Drilled or foamed feet, expansion joints, and BV to drill are billed only at the drilled rate. Square feet is only for the renewal. Pre-treatment stays on square feet.";
   }
   if (service === "pest") {

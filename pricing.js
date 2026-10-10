@@ -16,7 +16,7 @@ const RATES = {
   ratCleanout: 250,
   pretreatPerSqFt: 0.20,
   pretreatMin: 189,
-  boosterOff: 0.3,
+  boosterOff: 0.6, // booster = 40% of post-treat (Thomas 2026-10-09)
   taxRate: 0.07,
   oneTimeMin: 209,
   oneTimeBaseSqFt: 2500,
