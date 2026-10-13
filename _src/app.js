@@ -1,15 +1,3 @@
-const SHARED = { user: "familytermite", password: "quote185" };
-
-document.getElementById("login").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const ok = document.getElementById("user").value.trim() === SHARED.user
-    && document.getElementById("password").value === SHARED.password;
-  document.getElementById("err").textContent = ok ? "" : "That login does not match.";
-  document.getElementById("quote").classList.toggle("hidden", !ok);
-  document.getElementById("login").classList.toggle("hidden", ok);
-  if (ok) render();
-});
-
 function field(label, id, value) {
   return "<div class=\"cell\"><label>" + label + "</label><input id=\"" + id + "\" inputmode=\"decimal\" value=\"" + value + "\"></div>";
 }
@@ -25,6 +13,7 @@ const POST_EXTRAS = [
 const TERM_YEAR = "This agreement stays in force for one year and then year to year. Either party may cancel it in writing at least 30 days before the term ends.";
 const TERM_MONTH = "This agreement stays in force month to month. Either party may cancel it in writing at least 30 days before the term ends.";
 const TERM_VISIT = "This agreement stays in force service to service, for this visit only.";
+const TERM_FLEAS = "This agreement stays in force for two visits, the first visit and one follow-up visit, and then it ends.";
 
 function agreementTerm() {
   const service = document.getElementById("service").value;
@@ -35,8 +24,29 @@ function agreementTerm() {
   }
   const other = document.getElementById("other");
   const kind = other ? other.value : "";
+  if (kind === "fleas") return TERM_FLEAS;
   if (kind === "rat" || kind === "onetime") return TERM_VISIT;
   return TERM_MONTH;
+}
+
+function refreshOut() {
+  const out = document.getElementById("out");
+  if (!out) return;
+  const serviceEl = document.getElementById("service");
+  const service = serviceEl ? serviceEl.value : "";
+  if (service === "other") {
+    const other = document.getElementById("other");
+    const kind = other ? other.value : "";
+    if (kind === "fleas") {
+      const priced = configuredVisitPrice("fleas");
+      const follow = configuredVisitPrice("fleasFollowUp");
+      if (priced.status !== "ok" || follow.status !== "ok") {
+        out.textContent = "Fleas does not have a confirmed price yet. Ask the office before quoting it.";
+        return;
+      }
+    }
+  }
+  out.textContent = "Pick a service, then show the price.";
 }
 
 function updateTerm() {
@@ -76,7 +86,10 @@ function render() {
       "<option value=\"mosquito\">Mosquito</option>" +
       "<option value=\"rodent\">Rodent stations</option>" +
       "<option value=\"rat\">Rat cleanout</option>" +
-      "<option value=\"onetime\">One-time pest</option></select></div>" +
+      "<optgroup label=\"One-time service\">" +
+      "<option value=\"onetime\">One-time pest</option>" +
+      "<option value=\"fleas\">Fleas</option>" +
+      "</optgroup></select></div>" +
       "<div id=\"otherfields\"></div>";
   }
   document.getElementById("panel").innerHTML = html;
@@ -87,15 +100,21 @@ function render() {
       let extra = "";
       if (kind === "mosquito" || kind === "onetime") extra = field("Square feet", "sqft", "0");
       if (kind === "rodent") extra = field("Number of stations", "stations", "0");
+      if (kind === "fleas") {
+        const follow = configuredVisitPrice("fleasFollowUp");
+        const amount = follow.status === "ok" ? dollars(follow.amount) : "not set";
+        extra = "<p class=\"note\">Scheduled as two visits. The second follow-up visit is " + amount + ".</p>";
+      }
       document.getElementById("otherfields").innerHTML = extra;
       updateTerm();
+      refreshOut();
     };
     other.addEventListener("change", fill);
     fill();
   }
   const freq = document.getElementById("freq");
   if (freq) freq.addEventListener("change", updateTerm);
-  document.getElementById("out").textContent = "Pick a service, then show the price.";
+  refreshOut();
   updateTerm();
 }
 
@@ -139,6 +158,14 @@ function quoteLines() {
     if (kind === "rodent") lines.push(["Rodent stations", money(num("stations") * RATES.rodentBox)]);
     if (kind === "rat") lines.push(["Rat cleanout", RATES.ratCleanout]);
     if (kind === "onetime") lines.push(["One-time pest", oneTime(sqft)]);
+    if (kind === "fleas") {
+      const first = configuredVisitPrice("fleas");
+      const follow = configuredVisitPrice("fleasFollowUp");
+      if (first.status !== "ok" || follow.status !== "ok") return { lines: [], note: "", unpriced: "fleas" };
+      lines.push(["Fleas, first visit", first.amount]);
+      lines.push(["Second follow-up visit", follow.amount]);
+      note = "Scheduled as two visits. The second follow-up visit is " + dollars(follow.amount) + ".";
+    }
   }
   if ((service === "pretreat" || service === "post") && on("renewal")) {
     lines.push(["Yearly renewal", yearlyRenewal(sqft, num("lnft"), on("crawl"), num("miles"))]);
@@ -148,6 +175,10 @@ function quoteLines() {
 
 function showPrice() {
   const quote = quoteLines();
+  if (quote.unpriced) {
+    document.getElementById("out").textContent = "Fleas does not have a confirmed price yet. Ask the office before quoting it.";
+    return quote;
+  }
   if (!quote.lines.length) {
     document.getElementById("out").textContent = "Pick a service, then show the price.";
     return quote;
@@ -202,7 +233,7 @@ function serviceTitle() {
     const names = { monthly: "monthly", bimonthly: "every other month", quarterly: "quarterly", semiannual: "every six months", annual: "once a year" };
     return freq === "onetime" ? "One-time pest" : "Pest service, " + names[freq];
   }
-  const names = { mosquito: "Mosquito", rodent: "Rodent stations", rat: "Rat cleanout", onetime: "One-time pest" };
+  const names = { mosquito: "Mosquito", rodent: "Rodent stations", rat: "Rat cleanout", onetime: "One-time pest", fleas: "Fleas" };
   return names[document.getElementById("other").value];
 }
 
@@ -497,6 +528,7 @@ function sendReady() {
   if (!name || !address || !phone || !email) return "Fill in the customer name, address, phone, and email first.";
   if (signatureBlank()) return "The customer needs to sign before this can go out.";
   const quote = quoteLines();
+  if (quote.unpriced) return "Fleas does not have a confirmed price yet. Ask the office before quoting it.";
   if (!quote.lines.length) return "Show a price before sending the agreement.";
   return "";
 }
@@ -586,4 +618,4 @@ document.getElementById("textpdf").addEventListener("click", (event) => {
   setSendNote("The text app is opening to the customer. The office copy opens to office@family-termite.com. Attach the PDF to both.");
 });
 
-updateTerm();
+render();

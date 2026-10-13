@@ -1,0 +1,11 @@
+{
+  "name": "quotemaster-phone",
+  "private": true,
+  "scripts": {
+    "build": "node _build/build.js",
+    "test": "node _build/test.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.15.0"
+  }
+}
