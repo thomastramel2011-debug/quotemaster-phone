@@ -1,0 +1,11 @@
+# GitHub Pages publishes this branch with Jekyll.
+# Folders whose names start with _ are left off the site, including _src and _build.
+# Do not add a .nojekyll file. That would publish those folders.
+exclude:
+  - README.md
+  - password.config
+  - password.config.example
+  - package.json
+  - package-lock.json
+  - node_modules
+  - .gitignore

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Termite &amp; Environmental Services</title>
+<style>
+body{margin:0;background:#d5d5d5;color:#111;font-family:"Times New Roman",Times,"Noto Serif",serif}
+[hidden]{display:none !important}
+#gate{max-width:24rem;margin:0 auto;padding:1.4rem .9rem 2rem}
+#gate .card{background:#fff;border:1px solid #000;padding:1.15rem 1rem 1.05rem}
+#gate .logo{font-style:italic;font-weight:700;text-align:center;font-size:clamp(1.15rem,5.2vw,1.45rem);line-height:1.2;margin:0;padding-bottom:.45rem;border-bottom:3px solid #000}
+#gate .sub{text-align:center;font-size:.98rem;margin:.8rem 0 .1rem}
+#gate label{display:block;font-size:.8rem;margin:.75rem 0 .28rem}
+#gate input{width:100%;box-sizing:border-box;font-family:"Times New Roman",Times,"Noto Serif",serif;font-size:16px;padding:.55rem .45rem;border:1px solid #000;border-radius:0;background:#fff;color:#111}
+#gate input:focus{outline:2px solid #111;outline-offset:1px}
+#gate button{width:100%;box-sizing:border-box;margin-top:.85rem;padding:.7rem .4rem;min-height:48px;font-family:"Times New Roman",Times,"Noto Serif",serif;font-size:1rem;font-weight:700;border:1.5px solid #000;border-radius:0;background:#111;color:#fff}
+#gate button:disabled{opacity:.7}
+#gate .err{color:#8a1c1c;font-size:.9rem;line-height:1.3;min-height:1.2em;margin:.55rem 0 0}
+#opening{text-align:center;margin:2rem 1rem;font-size:1rem}
+.sessionbar{max-width:28rem;margin:0 auto;padding:.45rem .45rem 0;box-sizing:border-box}
+#signout{display:block;width:100%;box-sizing:border-box;margin:0 0 .45rem;padding:.55rem .4rem;min-height:44px;font-family:"Times New Roman",Times,"Noto Serif",serif;font-size:1rem;font-weight:700;border:1.5px solid #000;border-radius:0;background:#fff;color:#111}
+</style>
+</head>
+<body>
+<div id="gate">
+<form id="login" class="card" method="post" action="#">
+<p class="logo">Family Termite &amp; Environmental Services</p>
+<p class="sub">Tech sign in</p>
+<label for="password">Password</label>
+<input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" required>
+<p id="err" class="err" role="alert"></p>
+<button type="submit" id="signin">Sign in</button>
+</form>
+<noscript><p class="sub">Turn on JavaScript to sign in.</p></noscript>
+</div>
+<p id="opening" hidden>Opening…</p>
+<div id="session" hidden>
+<div class="sessionbar">
+<button type="button" id="signout">Sign out</button>
+</div>
+<div id="app"></div>
+</div>
+<script id="sealed" type="application/json">___SEALED_JSON___</script>
+<script>
+___GATE_SCRIPT___
+</script>
+</body>
+</html>

@@ -74,6 +74,19 @@ function pretreatPrice(sqft) {
   return money(Math.max(RATES.pretreatMin, sqft * RATES.pretreatPerSqFt));
 }
 
+// Dollar amount from _src/prices.config.js. PLACEHOLDER and blank values are not quotes.
+function configuredVisitPrice(kind) {
+  if (typeof ONE_TIME_PRICES === "undefined" || !Object.prototype.hasOwnProperty.call(ONE_TIME_PRICES, kind)) {
+    return { status: "missing" };
+  }
+  const raw = ONE_TIME_PRICES[kind];
+  if (typeof raw === "string" && raw.trim().toUpperCase() === "PLACEHOLDER") return { status: "placeholder" };
+  if (typeof raw === "string" && raw.trim() === "") return { status: "placeholder" };
+  const n = typeof raw === "number" ? raw : Number(String(raw).replace(/[$,\s]/g, ""));
+  if (!Number.isFinite(n) || n < 0) return { status: "invalid" };
+  return { status: "ok", amount: money(n) };
+}
+
 function quote(input) {
   const renewal = yearlyRenewal(input.sqft, input.lnft, input.crawl, input.miles);
   const mosquitoPrice = input.mosquito ? mosquito(input.sqft) : 0;

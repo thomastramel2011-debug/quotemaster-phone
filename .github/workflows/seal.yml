@@ -1,0 +1,40 @@
+name: Seal site
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "_src/**"
+      - "_build/**"
+      - ".github/workflows/seal.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Seal the public page
+        env:
+          QUOTEMASTER_PASSWORD: ${{ secrets.QUOTEMASTER_PASSWORD }}
+        run: |
+          if [ -z "$QUOTEMASTER_PASSWORD" ]; then
+            echo "::warning::QUOTEMASTER_PASSWORD is not set, so this run did not seal index.html. Add that Actions secret and run Seal site again, or seal on a computer with password.config. Quote edits stay off the live site until the page is sealed."
+            exit 0
+          fi
+          node _build/build.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "index.html already matches this seal."
+            exit 0
+          fi
+          git commit -m "Seal the phone quote page"
+          git push
