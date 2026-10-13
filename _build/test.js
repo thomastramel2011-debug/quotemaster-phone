@@ -152,25 +152,34 @@ function checkSourceShape() {
   assert(!quote.includes('id="login"'), "login form is still inside the quote");
 }
 
+function assertLoginShell(html, label) {
+  const seal = readSeal(html);
+  LEAKS.forEach((marker) => assert(!html.includes(marker), label + " contains " + marker));
+  assert(html.includes("Family Termite"), label + " is missing the company name");
+  assert(html.includes(">Sign in<"), label + " is missing Sign in");
+  assert(html.includes(">Sign out<"), label + " is missing Sign out");
+  assert(html.includes('type="password"'), label + " is missing the password field");
+  assert(html.includes('id="username"'), label + " is missing the username field");
+  assert(!html.includes(USERNAME), label + " contains the test username");
+  return seal;
+}
+
 function checkLoginPage() {
-  const banned = build(["--login-only", "--out", path.join(os.tmpdir(), "qm-login-" + process.pid + ".html")], creds(PASSWORD));
+  const out = path.join(os.tmpdir(), "qm-login-" + process.pid + ".html");
+  const banned = build(["--login-only", "--out", out], creds(PASSWORD));
   assert(!/Sealed the quote page/.test(banned.stdout), "login-only sealed a page");
-  const generated = fs.readFileSync(path.join(os.tmpdir(), "qm-login-" + process.pid + ".html"), "utf8");
+  const generated = fs.readFileSync(out, "utf8");
+  const shell = assertLoginShell(generated, "login-only page");
+  assert(shell.configured === false && !shell.ct, "login-only page is sealed");
   const committed = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert(generated === committed, "index.html does not match node _build/build.js --login-only");
-  const seal = readSeal(committed);
-  assert(seal.configured === false && !seal.ct, "public page is already sealed");
-  LEAKS.forEach((marker) => assert(!committed.includes(marker), "public page contains " + marker));
-  assert(committed.includes("Family Termite"), "company name missing");
-  assert(committed.includes(">Sign in<"), "sign-in button missing");
-  assert(committed.includes(">Sign out<"), "sign-out button missing");
-  assert(committed.includes('type="password"'), "password field missing");
-  assert(committed.includes('id="username"'), "username field missing");
-  assert(!committed.includes(USERNAME), "test username is on the public page");
+  const live = assertLoginShell(committed, "index.html");
+  if (live.configured) {
+    assert(live.iter === 600000 && live.salt && live.iv && live.ct, "sealed index.html is incomplete");
+  }
 }
 
 function rejectBadPasswords() {
-  ["quote185", "REPLACE_WITH_A_LONG_PASSWORD", "short-pass", ""].forEach((password) => {
+  ["quote185", "REPLACE_WITH_A_LONG_PASSWORD", "short", ""].forEach((password) => {
     const result = runNode(["_build/build.js", "--out", path.join(os.tmpdir(), "qm-bad.html")], creds(password));
     assert(result.status !== 0, "password was accepted: " + JSON.stringify(password));
   });

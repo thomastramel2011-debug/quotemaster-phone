@@ -10,7 +10,7 @@ The username and password are not stored in this repository. There is no guessab
 
 ## Set or change the shared sign-in
 
-One username and one password for every tech. The password needs at least 12 characters. Do not reuse a password that was already published in this repository, and do not leave the placeholders `REPLACE_WITH_THE_SHARED_USERNAME` or `REPLACE_WITH_A_LONG_PASSWORD`.
+One username and one password for every tech. The password needs at least 8 characters. Do not reuse a password that was already published in this repository, and do not leave the placeholders `REPLACE_WITH_THE_SHARED_USERNAME` or `REPLACE_WITH_A_LONG_PASSWORD`.
 
 Changing the username or the password signs every phone out. Techs enter the new pair once. Changing a price, without changing the sign-in, keeps phones signed in.
 

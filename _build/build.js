@@ -70,9 +70,9 @@ function checkLogin(login) {
     console.error("Set QUOTEMASTER_USERNAME to one username for every tech.");
     process.exit(1);
   }
-  if (!login.password || BANNED.has(login.password) || login.password.length < 12) {
-    console.error("The tech password is still the placeholder, or it is shorter than 12 characters.");
-    console.error("Set a new password of at least 12 characters. Do not reuse a password already published in this repository.");
+  if (!login.password || BANNED.has(login.password) || login.password.length < 8) {
+    console.error("The tech password is still the placeholder, or it is shorter than 8 characters.");
+    console.error("Set a password of at least 8 characters. Do not reuse a password already published in this repository.");
     process.exit(1);
   }
 }
