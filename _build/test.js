@@ -8,6 +8,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
+const USERNAME = "fieldtechs";
 const PASSWORD = "fleet-termite-test-password";
 const OTHER = "another-long-test-password";
 const LEAKS = [
@@ -36,8 +37,16 @@ function runNode(args, env) {
 
 function withoutPassword(extra) {
   const env = Object.assign({}, process.env, extra || {});
+  delete env.QUOTEMASTER_USERNAME;
   delete env.QUOTEMASTER_PASSWORD;
   return env;
+}
+
+function creds(password, username) {
+  return {
+    QUOTEMASTER_USERNAME: username === undefined ? USERNAME : username,
+    QUOTEMASTER_PASSWORD: password
+  };
 }
 
 function build(args, env) {
@@ -57,12 +66,12 @@ function readSeal(html) {
   return JSON.parse(html.slice(from, end));
 }
 
-async function decryptSeal(password, seal) {
+async function decryptSeal(username, password, seal) {
   const subtle = crypto.webcrypto.subtle;
   const salt = Buffer.from(seal.salt, "base64");
   const iv = Buffer.from(seal.iv, "base64");
   const ct = Buffer.from(seal.ct, "base64");
-  const base = await subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  const base = await subtle.importKey("raw", new TextEncoder().encode(username + "\0" + password), "PBKDF2", false, ["deriveKey"]);
   const key = await subtle.deriveKey(
     { name: "PBKDF2", salt: salt, iterations: seal.iter, hash: "SHA-256" },
     base,
@@ -144,9 +153,7 @@ function checkSourceShape() {
 }
 
 function checkLoginPage() {
-  const banned = build(["--login-only", "--out", path.join(os.tmpdir(), "qm-login-" + process.pid + ".html")], {
-    QUOTEMASTER_PASSWORD: PASSWORD
-  });
+  const banned = build(["--login-only", "--out", path.join(os.tmpdir(), "qm-login-" + process.pid + ".html")], creds(PASSWORD));
   assert(!/Sealed the quote page/.test(banned.stdout), "login-only sealed a page");
   const generated = fs.readFileSync(path.join(os.tmpdir(), "qm-login-" + process.pid + ".html"), "utf8");
   const committed = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
@@ -158,26 +165,30 @@ function checkLoginPage() {
   assert(committed.includes(">Sign in<"), "sign-in button missing");
   assert(committed.includes(">Sign out<"), "sign-out button missing");
   assert(committed.includes('type="password"'), "password field missing");
+  assert(committed.includes('id="username"'), "username field missing");
+  assert(!committed.includes(USERNAME), "test username is on the public page");
 }
 
 function rejectBadPasswords() {
   ["quote185", "REPLACE_WITH_A_LONG_PASSWORD", "short-pass", ""].forEach((password) => {
-    const result = runNode(["_build/build.js", "--out", path.join(os.tmpdir(), "qm-bad.html")], {
-      QUOTEMASTER_PASSWORD: password
-    });
+    const result = runNode(["_build/build.js", "--out", path.join(os.tmpdir(), "qm-bad.html")], creds(password));
     assert(result.status !== 0, "password was accepted: " + JSON.stringify(password));
+  });
+  ["", "REPLACE_WITH_THE_SHARED_USERNAME", "u"].forEach((username) => {
+    const result = runNode(["_build/build.js", "--out", path.join(os.tmpdir(), "qm-bad.html")], creds(PASSWORD, username));
+    assert(result.status !== 0, "username was accepted: " + JSON.stringify(username));
   });
 }
 
 async function checkSeal() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qm-seal-"));
   const dest = path.join(dir, "index.html");
-  build(["--out", dest], { QUOTEMASTER_PASSWORD: PASSWORD });
+  build(["--out", dest], creds(PASSWORD));
   const first = fs.readFileSync(dest, "utf8");
   LEAKS.forEach((marker) => assert(!first.includes(marker), "sealed page contains " + marker));
   const seal = readSeal(first);
   assert(seal.configured === true && seal.iter === 600000, "seal header " + JSON.stringify({ v: seal.v, iter: seal.iter, configured: seal.configured }));
-  const opened = await decryptSeal(PASSWORD, seal);
+  const opened = await decryptSeal(USERNAME, PASSWORD, seal);
   const payload = JSON.parse(opened.text);
   LEAKS.filter((marker) => marker !== "quote185" && marker !== "familytermite").forEach((marker) => {
     assert(opened.text.includes(marker), "decrypted quote is missing " + marker);
@@ -186,17 +197,24 @@ async function checkSeal() {
   assert(opened.text.includes("Fleas, first visit"), "flea line missing after decrypt");
   assert(!/bed\s*bugs?/i.test(opened.text), "bed bugs were encrypted into the quote");
   let rejected = false;
-  try { await decryptSeal(OTHER, seal); } catch (error) { rejected = true; }
+  try { await decryptSeal(USERNAME, OTHER, seal); } catch (error) { rejected = true; }
   assert(rejected, "a different password opened the seal");
+  let wrongUser = false;
+  try { await decryptSeal("othertechs", PASSWORD, seal); } catch (error) { wrongUser = true; }
+  assert(wrongUser, "a different username opened the seal");
 
-  build(["--out", dest], { QUOTEMASTER_PASSWORD: PASSWORD });
+  build(["--out", dest], creds(PASSWORD));
   const second = readSeal(fs.readFileSync(dest, "utf8"));
-  assert(second.salt === seal.salt, "rebuilding with the same password changed the key");
+  assert(second.salt === seal.salt, "rebuilding with the same sign-in changed the key");
   assert(second.iv !== seal.iv, "rebuild reused an IV");
-  const again = await decryptSeal(PASSWORD, second);
+  const again = await decryptSeal(USERNAME, PASSWORD, second);
   assert(again.text === opened.text, "rebuild changed the quote");
 
-  build(["--out", dest], { QUOTEMASTER_PASSWORD: OTHER });
+  build(["--out", dest], creds(PASSWORD, "othertechs"));
+  const renamed = readSeal(fs.readFileSync(dest, "utf8"));
+  assert(renamed.salt !== seal.salt, "a new username reused the old salt");
+
+  build(["--out", dest], creds(OTHER));
   const changed = readSeal(fs.readFileSync(dest, "utf8"));
   assert(changed.salt !== seal.salt, "a new password reused the old salt");
   let oldKeyFailed = false;
@@ -257,7 +275,7 @@ async function checkBrowser() {
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qm-browser-"));
   const dest = path.join(dir, "index.html");
-  build(["--out", dest], { QUOTEMASTER_PASSWORD: PASSWORD });
+  build(["--out", dest], creds(PASSWORD));
   const site = await serve(dest);
   const browser = await puppeteer.launch({
     executablePath: "/usr/bin/google-chrome",
@@ -274,6 +292,7 @@ async function checkBrowser() {
     const loginText = await page.evaluate(() => document.body.innerText);
     assert(loginText.includes("Family Termite & Environmental Services"), "login heading missing");
     assert(loginText.includes("Tech sign in"), "login label missing");
+    assert(loginText.includes("Username"), "username label missing");
     assert(!loginText.includes("Integrated Pest Management"), "agreement visible before sign-in");
     assert(!loginText.includes("Purchaser"), "quote form visible before sign-in");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
@@ -283,12 +302,25 @@ async function checkBrowser() {
     assert(!narrow, "login page scrolls sideways at 320px");
     await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
 
+    await page.type("#username", USERNAME);
     await page.type("#password", "wrong-password-value");
     await page.click("#signin");
     await page.waitForFunction(() => document.getElementById("err").textContent.includes("does not match"));
     assert(await page.evaluate(() => !localStorage.getItem("familyTermiteQuoteSession")), "a bad password was remembered");
 
-    await page.evaluate(() => { document.getElementById("password").value = ""; });
+    await page.evaluate(() => {
+      document.getElementById("username").value = "someone-else";
+      document.getElementById("password").value = "";
+    });
+    await page.type("#password", PASSWORD);
+    await page.click("#signin");
+    await page.waitForFunction(() => document.getElementById("err").textContent.includes("does not match"));
+
+    await page.evaluate(() => {
+      document.getElementById("username").value = "";
+      document.getElementById("password").value = "";
+    });
+    await page.type("#username", USERNAME);
     await page.type("#password", PASSWORD);
     await page.click("#signin");
     await page.waitForSelector("#service");
@@ -301,6 +333,7 @@ async function checkBrowser() {
     const days = (session.exp - Date.now()) / (24 * 60 * 60 * 1000);
     assert(days > 29 && days < 31, "remember period is " + days + " days");
     assert(!JSON.stringify(session).includes(PASSWORD), "the password was stored");
+    assert(!JSON.stringify(session).includes(USERNAME), "the username was stored");
 
     await page.select("#service", "pretreat");
     await page.evaluate(() => { document.getElementById("sqft").value = "2500"; });

@@ -3,6 +3,7 @@
   var REMEMBER_MS = 30 * 24 * 60 * 60 * 1000;
   var sealed = JSON.parse(document.getElementById("sealed").textContent);
   var form = document.getElementById("login");
+  var usernameInput = document.getElementById("username");
   var passwordInput = document.getElementById("password");
   var err = document.getElementById("err");
   var button = document.getElementById("signin");
@@ -56,10 +57,10 @@
     });
   }
 
-  function deriveKey(password) {
+  function deriveKey(username, password) {
     return crypto.subtle.importKey(
       "raw",
-      new TextEncoder().encode(password),
+      new TextEncoder().encode(username + "\0" + password),
       "PBKDF2",
       false,
       ["deriveKey"]
@@ -96,7 +97,7 @@
     sessionBox.hidden = true;
     gate.hidden = false;
     err.textContent = message || "";
-    if (!message) passwordInput.focus();
+    if (!message) usernameInput.focus();
   }
 
   function openQuote(text) {
@@ -108,6 +109,7 @@
       script.textContent = code;
       document.body.appendChild(script);
     });
+    usernameInput.value = "";
     passwordInput.value = "";
     gate.hidden = true;
     opening.hidden = true;
@@ -117,7 +119,7 @@
 
   function fail(error) {
     var wrong = error && (error.name === "OperationError" || error.name === "InvalidAccessError");
-    showGate(wrong ? "That password does not match." : "Could not open the quote tool on this phone.");
+    showGate(wrong ? "That sign-in does not match." : "Could not open the quote tool on this phone.");
   }
 
   document.getElementById("signout").addEventListener("click", function () {
@@ -136,9 +138,10 @@
       showGate("Sign-in is not set up yet. Call the office.");
       return;
     }
+    var username = usernameInput.value.trim();
     var password = passwordInput.value;
-    if (!password) {
-      showGate("Enter the tech password.");
+    if (!username || !password) {
+      showGate("Enter the tech username and password.");
       return;
     }
     busy = true;
@@ -147,7 +150,7 @@
     err.textContent = "";
     window.requestAnimationFrame(function () {
       window.setTimeout(function () {
-        deriveKey(password).then(function (key) {
+        deriveKey(username, password).then(function (key) {
           return decryptWith(key).then(function (text) {
             return saveSession(key).then(function () { return text; });
           });
@@ -173,6 +176,6 @@
       showGate("");
     });
   } else {
-    passwordInput.focus();
+    usernameInput.focus();
   }
 })();

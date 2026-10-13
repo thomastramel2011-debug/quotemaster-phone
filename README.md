@@ -4,25 +4,25 @@ Techs open this page on a phone and build a service agreement. GitHub Pages serv
 
 https://thomastramel2011-debug.github.io/quotemaster-phone/
 
-Someone who only has that link sees a sign-in page: the company name, a password box, and Sign in. The quote form and the agreement are encrypted. They are not in the public page. After the shared tech password is entered, the quote tool opens in the browser. The phone stays signed in for 30 days. Sign out is the button at the top of the quote.
+Someone who only has that link sees a sign-in page: the company name, a username, a password, and Sign in. Every tech uses the same username and the same password. There are no separate tech accounts. The quote form and the agreement are encrypted. They are not in the public page. After that shared sign-in, the quote tool opens in the browser. The phone stays signed in for 30 days. Sign out is the button at the top of the quote.
 
-The password is not stored in this repository. There is no guessable default. Until you seal the page, the live site is only the login screen and the quote tool will not open.
+The username and password are not stored in this repository. There is no guessable default. Until you seal the page, the live site is only the login screen and the quote tool will not open.
 
-## Set or change the tech password
+## Set or change the shared sign-in
 
-Use one password for every tech. Make it at least 12 characters. Do not reuse a password that was already published in this repository, and do not leave the placeholder `REPLACE_WITH_A_LONG_PASSWORD`.
+One username and one password for every tech. The password needs at least 12 characters. Do not reuse a password that was already published in this repository, and do not leave the placeholders `REPLACE_WITH_THE_SHARED_USERNAME` or `REPLACE_WITH_A_LONG_PASSWORD`.
 
-Changing the password signs every phone out. Techs enter the new password once. Changing a price, without changing the password, keeps phones signed in.
+Changing the username or the password signs every phone out. Techs enter the new pair once. Changing a price, without changing the sign-in, keeps phones signed in.
 
 ### On a computer
 
 1. Install Node.js if it is not already installed: https://nodejs.org
 2. Copy `password.config.example` to a file named `password.config` in this folder.
-3. Open `password.config`. Replace `REPLACE_WITH_A_LONG_PASSWORD` with the real password. Save. Spaces at the ends are ignored.
+3. Open `password.config`. Set `QUOTEMASTER_USERNAME` and `QUOTEMASTER_PASSWORD`. Save. Spaces at the ends are ignored.
 4. Run `node _build/build.js`
 5. Commit `index.html` and push it to `main`.
 
-`password.config` stays on that computer. Git ignores it. Do not commit it. Committing it would publish the password.
+`password.config` stays on that computer. Git ignores it. Do not commit it. Committing it would publish the sign-in.
 
 ### On GitHub, without installing Node
 
@@ -30,11 +30,12 @@ The seal action has to be on `main` before GitHub will list it. Merge first, the
 
 1. Open the repository on GitHub.
 2. Go to Settings, then Secrets and variables, then Actions, then New repository secret.
-3. Name the secret exactly `QUOTEMASTER_PASSWORD`. Paste the password as the value.
-4. Open Actions, then Seal site, then Run workflow, then Run workflow.
-5. When it finishes, it commits a sealed `index.html` on `main`. Pages publishes that commit.
+3. Create a secret named exactly `QUOTEMASTER_USERNAME`. Paste the shared username.
+4. Create a second secret named exactly `QUOTEMASTER_PASSWORD`. Paste the shared password.
+5. Open Actions, then Seal site, then Run workflow, then Run workflow.
+6. When it finishes, it commits a sealed `index.html` on `main`. Pages publishes that commit.
 
-To change the password later, update that secret, or edit `password.config`, and seal again the same way.
+To change the sign-in later, update those secrets, or edit `password.config`, and seal again the same way.
 
 ## Fleas
 
@@ -51,7 +52,7 @@ Bed bugs are not on the quote.
 
 ## What someone with only the link can see
 
-They can see the company name, the password box, and Sign in. They cannot see the agreement, the prices, the customer form, or the password by viewing the page source or by opening the old `app.js`, `pricing.js`, or `techs.json` addresses. Those files are no longer on the site. The quote is encrypted with AES-256-GCM. The key is derived from the tech password with PBKDF2-SHA-256 at 600,000 rounds. The password itself is not in the page.
+They can see the company name, the username box, the password box, and Sign in. They cannot see the agreement, the prices, the customer form, or the shared sign-in by viewing the page source or by opening the old `app.js`, `pricing.js`, or `techs.json` addresses. Those files are no longer on the site. The quote is encrypted with AES-256-GCM. The key is derived from the shared username and password together with PBKDF2-SHA-256 at 600,000 rounds. Neither value is in the page.
 
 This is not a server login. The site cannot lock a person out or see who tried a password. A short password can be guessed offline, only slowly. Use a long one.
 
@@ -63,7 +64,7 @@ Do not add a file named `.nojekyll`. That turns Jekyll off and would publish `_s
 
 Pages is set to the `main` branch, folder `/`. A merge or any other push to `main` is what updates the live site. GitHub usually finishes that within a minute or two.
 
-Quote wording, the flea price, and the password change for techs only after `index.html` is sealed again. A merge that does not seal leaves the previous public page in place. The first merge of this gate publishes the login screen only, until the password steps above have been run.
+Quote wording, the flea price, and the shared sign-in change for techs only after `index.html` is sealed again. A merge that does not seal leaves the previous public page in place. The first merge of this gate publishes the login screen only, until the sign-in steps above have been run.
 
 ## Quoting
 

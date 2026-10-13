@@ -8,6 +8,7 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..");
 const ITERATIONS = 600000;
 const PLACEHOLDER = "REPLACE_WITH_A_LONG_PASSWORD";
+const USER_PLACEHOLDER = "REPLACE_WITH_THE_SHARED_USERNAME";
 const BANNED = new Set([PLACEHOLDER, "quote185", "password", "changeme", "change-me"]);
 const LEAKS = [
   "Integrated Pest Management Service Agreement",
@@ -38,25 +39,38 @@ function args() {
   return parsed;
 }
 
-function readPassword() {
-  if (process.env.QUOTEMASTER_PASSWORD) return process.env.QUOTEMASTER_PASSWORD.trim();
+function configValue(name) {
+  if (Object.prototype.hasOwnProperty.call(process.env, name)) return String(process.env[name]).trim();
   const file = path.join(ROOT, "password.config");
-  if (!fs.existsSync(file)) {
-    console.error("No tech password yet.");
-    console.error("Copy password.config.example to password.config, set QUOTEMASTER_PASSWORD, then run node _build/build.js");
-    console.error("Or set the QUOTEMASTER_PASSWORD environment variable.");
-    process.exit(1);
-  }
-  const line = fs.readFileSync(file, "utf8").split(/\r?\n/).find((item) => item.startsWith("QUOTEMASTER_PASSWORD="));
-  if (!line) {
-    console.error("password.config needs a line that starts with QUOTEMASTER_PASSWORD=");
-    process.exit(1);
-  }
-  return line.slice("QUOTEMASTER_PASSWORD=".length).trim();
+  if (!fs.existsSync(file)) return "";
+  const line = fs.readFileSync(file, "utf8").split(/\r?\n/).find((item) => item.startsWith(name + "="));
+  if (!line) return "";
+  return line.slice(name.length + 1).trim();
 }
 
-function checkPassword(password) {
-  if (!password || BANNED.has(password) || password.length < 12) {
+function readLogin() {
+  const username = configValue("QUOTEMASTER_USERNAME");
+  const password = configValue("QUOTEMASTER_PASSWORD");
+  if (!username || !password) {
+    console.error("The shared tech username and password are not set.");
+    console.error("Copy password.config.example to password.config and set QUOTEMASTER_USERNAME and QUOTEMASTER_PASSWORD.");
+    console.error("Or set both QUOTEMASTER_USERNAME and QUOTEMASTER_PASSWORD in the environment.");
+    process.exit(1);
+  }
+  return { username: username, password: password };
+}
+
+function loginMaterial(username, password) {
+  return username + "\0" + password;
+}
+
+function checkLogin(login) {
+  if (!login.username || login.username === USER_PLACEHOLDER || login.username.length < 2 || login.username.includes("\0")) {
+    console.error("The shared username is still the placeholder, or it is too short.");
+    console.error("Set QUOTEMASTER_USERNAME to one username for every tech.");
+    process.exit(1);
+  }
+  if (!login.password || BANNED.has(login.password) || login.password.length < 12) {
     console.error("The tech password is still the placeholder, or it is shorter than 12 characters.");
     console.error("Set a new password of at least 12 characters. Do not reuse a password already published in this repository.");
     process.exit(1);
@@ -77,12 +91,12 @@ function readSeal(html) {
   }
 }
 
-function passwordStillOpens(password, existing) {
+function passwordStillOpens(login, existing) {
   if (!existing || existing.configured !== true || existing.iter !== ITERATIONS) return false;
   if (!existing.salt || !existing.iv || !existing.ct) return false;
   try {
     const salt = Buffer.from(existing.salt, "base64");
-    const key = crypto.pbkdf2Sync(password, salt, ITERATIONS, 32, "sha256");
+    const key = crypto.pbkdf2Sync(loginMaterial(login.username, login.password), salt, ITERATIONS, 32, "sha256");
     const iv = Buffer.from(existing.iv, "base64");
     const ct = Buffer.from(existing.ct, "base64");
     const tag = ct.subarray(ct.length - 16);
@@ -97,9 +111,9 @@ function passwordStillOpens(password, existing) {
   }
 }
 
-function encrypt(password, plaintext, salt) {
+function encrypt(login, plaintext, salt) {
   const iv = crypto.randomBytes(12);
-  const key = crypto.pbkdf2Sync(password, salt, ITERATIONS, 32, "sha256");
+  const key = crypto.pbkdf2Sync(loginMaterial(login.username, login.password), salt, ITERATIONS, 32, "sha256");
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const ct = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final(), cipher.getAuthTag()]);
   return {
@@ -155,12 +169,12 @@ function main() {
   const options = args();
   let sealed = { v: 1, configured: false };
   if (!options.loginOnly) {
-    const password = readPassword();
-    checkPassword(password);
+    const login = readLogin();
+    checkLogin(login);
     const previous = fs.existsSync(options.dest) ? fs.readFileSync(options.dest, "utf8") : "";
-    const reused = passwordStillOpens(password, readSeal(previous));
+    const reused = passwordStillOpens(login, readSeal(previous));
     const salt = reused || crypto.randomBytes(16);
-    sealed = encrypt(password, quotePlaintext(), salt);
+    sealed = encrypt(login, quotePlaintext(), salt);
   }
   const html = renderPage(sealed);
   fs.mkdirSync(path.dirname(options.dest), { recursive: true });

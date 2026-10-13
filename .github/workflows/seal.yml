@@ -22,10 +22,11 @@ jobs:
           node-version: "22"
       - name: Seal the public page
         env:
+          QUOTEMASTER_USERNAME: ${{ secrets.QUOTEMASTER_USERNAME }}
           QUOTEMASTER_PASSWORD: ${{ secrets.QUOTEMASTER_PASSWORD }}
         run: |
-          if [ -z "$QUOTEMASTER_PASSWORD" ]; then
-            echo "::warning::QUOTEMASTER_PASSWORD is not set, so this run did not seal index.html. Add that Actions secret and run Seal site again, or seal on a computer with password.config. Quote edits stay off the live site until the page is sealed."
+          if [ -z "$QUOTEMASTER_USERNAME" ] || [ -z "$QUOTEMASTER_PASSWORD" ]; then
+            echo "::warning::QUOTEMASTER_USERNAME and QUOTEMASTER_PASSWORD are both required, so this run did not seal index.html. Add both Actions secrets and run Seal site again, or seal on a computer with password.config. Quote edits stay off the live site until the page is sealed."
             exit 0
           fi
           node _build/build.js
