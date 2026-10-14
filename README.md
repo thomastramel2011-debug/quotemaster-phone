@@ -39,7 +39,7 @@ To change the sign-in later, update those secrets, or edit `password.config`, an
 
 ## Fleas
 
-Fleas is under Other / one-time, in the One-time service group, next to One-time pest. It is a two-visit one-time service. The quote shows the first visit, the second follow-up visit at $0.00, then 7% sales tax on the total of those lines.
+Fleas is under Other / one-time, in the One-time service group, next to One-time pest. It is a two-visit one-time service. The quote shows the first visit, the second follow-up visit at $0.00, then sales tax on the total of those lines. The tax is 8% for a City of Jackson zip and 7% otherwise.
 
 Set the amounts in `_src/prices.config.js`:
 
@@ -68,10 +68,12 @@ Quote wording, the flea price, and the shared sign-in change for techs only afte
 
 ## Quoting
 
-Does not write to Fieldster and does not open Visio files. Three footage choices. Prices follow the Quote Master: renewal $185 up to 2,500 sq ft plus $10 per started 1,000 sq ft, crawl $50, $1 per mile over 50, $0.10 per outside foot over 300, mosquito $69 under 5,000 sq ft otherwise sq ft times 0.0125 times 1.3, stations $25 each, rat cleanout $250 flat, tax 7%.
+Does not write to Fieldster and does not open Visio files. Three footage choices. Prices follow the Quote Master: renewal $185 up to 2,500 sq ft plus $10 per started 1,000 sq ft, crawl $50, $1 per mile over 50, $0.10 per outside foot over 300, mosquito $69 under 5,000 sq ft otherwise sq ft times 0.0125 times 1.3, stations $25 each, rat cleanout $250 flat. Sales tax is 8% for a City of Jackson zip and 7% for every other zip. The zip code is required.
 
-Send as Agreement builds the one-page PDF in the page itself, with no outside library: customer name, address, phone, email, service, quoted price, 7% sales tax, total, signature, printed name, and date. Customer email is required. Email sends to the customer and always copies office@family-termite.com. A text to the customer also opens that office copy. There is no way to skip the office.
+Send as Agreement builds the one-page PDF in the page itself, with no outside library: customer name, address, zip code, phone, email, service, quoted price, sales tax at 7% or 8%, total, signature, printed name, and date. Customer email is required. Email sends to the customer and always copies office@family-termite.com. A text to the customer also opens that office copy. There is no way to skip the office.
 
 Fleas uses the same visit-style agreement, written for two visits. The first visit is the `fleas` amount in `_src/prices.config.js`. The follow-up visit is `fleasFollowUp`. Tax is still 7% of the two lines together.
 
-Pest service, outside only sits next to regular pest service. It is monthly or quarterly. The price starts at $79 up to 2,500 sq ft, then $10 per started 1,000, the same rounding as regular pest, plus 7% tax. The agreement and the email subject say "Pest service (outside only), monthly" or "Pest service (outside only), quarterly".
+Pest service, outside only sits next to regular pest service. It is monthly or quarterly. The price starts at $79 up to 2,500 sq ft, then $10 per started 1,000, the same rounding as regular pest, plus 8% tax in the City of Jackson and 7% everywhere else. The agreement and the email subject say "Pest service (outside only), monthly" or "Pest service (outside only), quarterly".
+
+City of Jackson zips, from the Census Bureau 2020 ZCTA-to-Place file for Jackson city, are 39174, 39201, 39202, 39203, 39204, 39206, 39210, 39211, 39212, 39213, 39216, 39217, and 39269. The list is in `_src/pricing.js`.
