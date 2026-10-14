@@ -114,8 +114,21 @@ function checkPricing() {
     "outsideStep: outsidePest(2501)," +
     "outsideBand: outsidePest(3500)," +
     "outsideNext: outsidePest(3501)," +
-    "outsideTax: money(79 * 0.07)," +
-    "outsideTotal: money(79 + money(79 * 0.07))," +
+    "outsideTax: money(79 * taxRateForZip('39042'))," +
+    "outsideTotal: money(79 + money(79 * taxRateForZip('39042')))," +
+    "jacksonRate: taxRateForZip('39204')," +
+    "jacksonPlus4: taxRateForZip('39204-1234')," +
+    "tougaloo: taxRateForZip('39174')," +
+    "byram: taxRateForZip('39272')," +
+    "west: taxRateForZip('39209')," +
+    "pearl: taxRateForZip('39208')," +
+    "blank: taxRateForZip('')," +
+    "partial: taxRateForZip('3920')," +
+    "jacksonTax: money(79 * taxRateForZip('39201'))," +
+    "jacksonTotal: money(79 + money(79 * taxRateForZip('39201')))," +
+    "zips: Object.keys(JACKSON_ZIPS).sort().join(',')," +
+    "label7: salesTaxLabel(0.07)," +
+    "label8: salesTaxLabel(0.08)," +
     "tax: money(250 * 0.07)," +
     "total: money(250 + money(250 * 0.07))" +
     "};")();
@@ -140,6 +153,19 @@ function checkPricing() {
   assert(got.outsideNext === 99, "outside next " + got.outsideNext);
   assert(got.outsideTax === 5.53, "outside tax " + got.outsideTax);
   assert(got.outsideTotal === 84.53, "outside total " + got.outsideTotal);
+  assert(got.jacksonRate === 0.08, "jackson rate " + got.jacksonRate);
+  assert(got.jacksonPlus4 === 0.08, "jackson zip+4 " + got.jacksonPlus4);
+  assert(got.tougaloo === 0.08, "tougaloo rate " + got.tougaloo);
+  assert(got.byram === 0.07, "byram rate " + got.byram);
+  assert(got.west === 0.07, "39209 rate " + got.west);
+  assert(got.pearl === 0.07, "39208 rate " + got.pearl);
+  assert(got.blank === 0.07, "blank rate " + got.blank);
+  assert(got.partial === 0.07, "partial rate " + got.partial);
+  assert(got.jacksonTax === 6.32, "jackson tax " + got.jacksonTax);
+  assert(got.jacksonTotal === 85.32, "jackson total " + got.jacksonTotal);
+  assert(got.zips === "39174,39201,39202,39203,39204,39206,39210,39211,39212,39213,39216,39217,39269", "zip list " + got.zips);
+  assert(got.label7 === "Sales tax 7%", "label 7 " + got.label7);
+  assert(got.label8 === "Sales tax 8%", "label 8 " + got.label8);
   assert(got.tax === 17.5, "flea tax " + got.tax);
   assert(got.total === 267.5, "flea total " + got.total);
 
@@ -357,12 +383,20 @@ async function checkBrowser() {
     assert(!JSON.stringify(session).includes(PASSWORD), "the password was stored");
     assert(!JSON.stringify(session).includes(USERNAME), "the username was stored");
 
+    await page.evaluate(() => { document.getElementById("czip").value = ""; });
+    await page.select("#service", "pretreat");
+    await page.evaluate(() => { document.getElementById("sqft").value = "2500"; });
+    await page.click("#calc");
+    let blocked = await page.evaluate(() => document.getElementById("out").innerText);
+    assert(blocked.includes("5-digit zip code") && !blocked.includes("$500.00"), "zip required\n" + blocked);
+    await page.evaluate(() => { document.getElementById("czip").value = "39042"; });
+
     await page.select("#service", "pretreat");
     await page.evaluate(() => { document.getElementById("sqft").value = "2500"; });
     await page.click("#calc");
     let price = await page.evaluate(() => document.getElementById("out").innerText);
     assert(price.includes("Pre-treatment") && price.includes("$500.00"), "pretreat price\n" + price);
-    assert(price.includes("$35.00") && price.includes("$535.00"), "pretreat tax\n" + price);
+    assert(price.includes("Sales tax 7%") && price.includes("$35.00") && price.includes("$535.00"), "pretreat tax\n" + price);
 
     await page.select("#service", "post");
     await page.click("#calc");
@@ -386,6 +420,11 @@ async function checkBrowser() {
     price = await page.evaluate(() => document.getElementById("out").innerText);
     assert(price.includes("Pest service (outside only), monthly") && price.includes("$79.00"), "outside monthly\n" + price);
     assert(price.includes("Sales tax 7%") && price.includes("$5.53") && price.includes("$84.53"), "outside tax\n" + price);
+    await page.evaluate(() => { document.getElementById("czip").value = "39204"; });
+    await page.click("#calc");
+    price = await page.evaluate(() => document.getElementById("out").innerText);
+    assert(price.includes("Sales tax 8%") && price.includes("$6.32") && price.includes("$85.32"), "jackson outside tax\n" + price);
+    await page.evaluate(() => { document.getElementById("czip").value = "39042"; });
     await page.select("#freq", "quarterly");
     await page.evaluate(() => { document.getElementById("sqft").value = "3501"; });
     await page.click("#calc");
@@ -396,6 +435,7 @@ async function checkBrowser() {
       document.getElementById("cphone").value = "6015550100";
       document.getElementById("caddress").value = "1 Main St";
       document.getElementById("cemail").value = "ada@example.com";
+      document.getElementById("czip").value = "39201";
       const canvas = document.getElementById("sign");
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#111111";
@@ -411,6 +451,9 @@ async function checkBrowser() {
     assert(mail.customer.includes("subject=Pest service (outside only), quarterly"), "customer subject\n" + mail.customer);
     assert(mail.customer.includes("Pest service (outside only), quarterly"), "customer agreement\n" + mail.customer);
     assert(mail.office.includes("subject=Office copy: Pest service (outside only), quarterly"), "office subject\n" + mail.office);
+    assert(mail.customer.includes("Sales tax 8%"), "customer tax label\n" + mail.customer);
+    assert(mail.customer.includes("39201"), "customer zip\n" + mail.customer);
+    await page.evaluate(() => { document.getElementById("czip").value = "39042"; });
     await page.screenshot({ path: "/tmp/qm-outside.png", fullPage: true });
     await page.evaluate(() => {
       ["cname", "cphone", "caddress", "cemail"].forEach((id) => { document.getElementById(id).value = ""; });
@@ -434,9 +477,14 @@ async function checkBrowser() {
     assert(fleaIntro.includes("$0.00"), "follow-up amount missing\n" + fleaIntro);
     const term = await page.evaluate(() => document.getElementById("term").textContent);
     assert(term.includes("two visits") && term.includes("follow-up"), "agreement term\n" + term);
+    await page.evaluate(() => { document.getElementById("czip").value = "39206"; });
     await page.click("#calc");
     price = await page.evaluate(() => document.getElementById("out").innerText);
     assert(price.includes("Fleas, first visit") && price.includes("$250.00"), "flea visit\n" + price);
+    assert(price.includes("Sales tax 8%") && price.includes("$20.00") && price.includes("$270.00"), "jackson flea tax\n" + price);
+    await page.evaluate(() => { document.getElementById("czip").value = "39042"; });
+    await page.click("#calc");
+    price = await page.evaluate(() => document.getElementById("out").innerText);
     assert(price.includes("Second follow-up visit") && price.includes("$0.00"), "flea follow-up\n" + price);
     assert(price.includes("Sales tax 7%") && price.includes("$17.50"), "flea tax\n" + price);
     assert(price.includes("Total") && price.includes("$267.50"), "flea total\n" + price);

@@ -17,7 +17,8 @@ const RATES = {
   pretreatPerSqFt: 0.20,
   pretreatMin: 189,
   boosterOff: 0.6, // booster = 40% of post-treat (Thomas 2026-10-09)
-  taxRate: 0.07,
+  taxRate: 0.07, // Mississippi state sales tax, everywhere outside the City of Jackson
+  jacksonTaxRate: 0.08, // 7% state + 1% Jackson Special Infrastructure Tax, inside the city only
   oneTimeMin: 209,
   oneTimeBaseSqFt: 2500,
   oneTimeStepSqFt: 500,
@@ -31,6 +32,46 @@ const RATES = {
 
 function money(n) {
   return Math.round(n * 100) / 100;
+}
+
+// City of Jackson, Mississippi delivery ZIPs. A ZIP is listed only when Jackson city
+// (Census GEOID 2836000) is a majority of that 2020 ZCTA's land area in the Census
+// Bureau ZCTA-to-Place relationship file:
+// https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_place20_natl.txt
+// 8% is the 7% state rate plus the 1% Jackson Special Infrastructure Tax on sales
+// inside the municipality (Mississippi DOR; House Bill 787, 2014; in force until July 1, 2035):
+// https://www.dor.ms.gov/business/sales-and-use-tax/tourism-and-economic-development-taxes
+// Nearby USPS "Jackson" ZIPs that are mostly outside the city, including 39208, 39209,
+// 39232, and 39272, stay at 7%.
+const JACKSON_ZIPS = {
+  "39174": true,
+  "39201": true,
+  "39202": true,
+  "39203": true,
+  "39204": true,
+  "39206": true,
+  "39210": true,
+  "39211": true,
+  "39212": true,
+  "39213": true,
+  "39216": true,
+  "39217": true,
+  "39269": true
+};
+
+function normalizeZip(value) {
+  const match = String(value || "").trim().match(/^(\d{5})(?:-\d{4})?$/);
+  return match ? match[1] : "";
+}
+
+function taxRateForZip(zip) {
+  const digits = normalizeZip(zip);
+  if (digits && JACKSON_ZIPS[digits]) return RATES.jacksonTaxRate;
+  return RATES.taxRate;
+}
+
+function salesTaxLabel(rate) {
+  return "Sales tax " + Math.round(rate * 100) + "%";
 }
 
 function yearlyRenewal(sqft, lnft, crawl, miles) {
@@ -104,6 +145,8 @@ function quote(input) {
   const post = input.post ? postTreat(input.lnft + (input.extraLn || 0), drillTotal) : 0;
   const booster = input.booster ? money(post * (1 - RATES.boosterOff)) : 0;
   const subtotal = money(renewal * (input.renewal ? 1 : 0) + mosquitoPrice + stations + rat + oneTimePrice + (input.booster ? booster : post) + pretreat);
+  const rate = taxRateForZip(input.zip);
+  const tax = money(subtotal * rate);
   return {
     renewal,
     sixMonth: money(renewal / 2),
@@ -115,7 +158,8 @@ function quote(input) {
     booster,
     pretreat,
     subtotal,
-    tax: money(subtotal * RATES.taxRate),
-    total: money(subtotal * (1 + RATES.taxRate))
+    taxRate: rate,
+    tax,
+    total: money(subtotal + tax)
   };
 }

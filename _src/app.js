@@ -190,9 +190,13 @@ function showPrice() {
     document.getElementById("out").textContent = "Pick a service, then show the price.";
     return quote;
   }
+  const zip = normalizeZip(document.getElementById("czip").value);
+  if (!zip) {
+    document.getElementById("out").textContent = "Enter a 5-digit zip code before the price. City of Jackson zip codes are 8% tax. Every other zip is 7%.";
+    return quote;
+  }
   const subtotal = money(quote.lines.reduce((sum, row) => sum + row[1], 0));
-  const tax = money(subtotal * RATES.taxRate);
-  const total = money(subtotal + tax);
+  const priced = quoteTax(subtotal);
   let html = "<div class=\"costhead\">The combined cost of your protection</div>";
   html += quote.lines.map((row) => line(row[0], row[1])).join("");
   POST_EXTRAS.forEach((row) => {
@@ -201,14 +205,25 @@ function showPrice() {
     html += "<div class=\"row\"><span>" + row[0] + "</span><b>" + feet + " ft included</b></div>";
   });
   html += line("Subtotal", subtotal);
-  html += line("Sales tax 7%", tax);
-  html += "<div class=\"row total\"><span>Total</span><b>" + dollars(total) + "</b></div>";
+  html += line(priced.label, priced.tax);
+  html += "<div class=\"row total\"><span>Total</span><b>" + dollars(priced.total) + "</b></div>";
   if (quote.note) html += "<p class=\"note\">" + quote.note + "</p>";
   document.getElementById("out").innerHTML = html;
   return quote;
 }
 
 document.getElementById("calc").addEventListener("click", showPrice);
+document.getElementById("czip").addEventListener("input", () => {
+  const out = document.getElementById("out");
+  if (!out || out.textContent.indexOf("Pick a service") === 0) return;
+  showPrice();
+});
+
+function quoteTax(subtotal) {
+  const rate = taxRateForZip(document.getElementById("czip").value);
+  const tax = money(subtotal * rate);
+  return { rate: rate, tax: tax, total: money(subtotal + tax), label: salesTaxLabel(rate) };
+}
 
 function setupSign(){
   const c=document.getElementById("sign");
@@ -266,6 +281,8 @@ function detailLines() {
   POST_EXTRAS.forEach((row) => add(row[0], row[1]));
   add("Travel miles, one way", "miles");
   add("Stations", "stations");
+  const zip = normalizeZip(document.getElementById("czip").value);
+  if (zip) rows.push("Zip code: " + zip);
   const crawl = document.getElementById("crawl");
   if (crawl) rows.push("Crawl or raised foundation: " + (crawl.value === "1" ? "Yes" : "No"));
   const renewal = document.getElementById("renewal");
@@ -296,20 +313,21 @@ function agreementText(quote) {
   const name = document.getElementById("cname").value.trim();
   const lines = quote.lines.map((row) => row[0] + " " + dollars(row[1]));
   const subtotal = money(quote.lines.reduce((sum, row) => sum + row[1], 0));
-  const tax = money(subtotal * RATES.taxRate);
-  const total = money(subtotal + tax);
+  const priced = quoteTax(subtotal);
+  const zip = normalizeZip(document.getElementById("czip").value);
   return [
     "Family Termite & Environmental Services",
     "Brandon, Ms. • 601-933-1014",
     "Integrated Pest Management Service Agreement",
     name,
     document.getElementById("caddress").value.trim(),
+    zip,
     document.getElementById("cphone").value.trim(),
     serviceTitle(),
     lines.join("; "),
     "Subtotal " + dollars(subtotal),
-    "Sales tax 7% " + dollars(tax),
-    "Total " + dollars(total)
+    priced.label + " " + dollars(priced.tax),
+    "Total " + dollars(priced.total)
   ].filter(Boolean).join("\n");
 }
 
@@ -464,6 +482,7 @@ function buildAgreementPdf(quote) {
   };
   write("Customer: " + document.getElementById("cname").value.trim(), 12, false);
   write("Address: " + document.getElementById("caddress").value.trim(), 12, false);
+  write("Zip code: " + normalizeZip(document.getElementById("czip").value), 12, false);
   write("Telephone: " + document.getElementById("cphone").value.trim(), 12, false);
   const email = document.getElementById("cemail").value.trim();
   if (email) write("Email: " + email, 12, false);
@@ -472,12 +491,11 @@ function buildAgreementPdf(quote) {
   y += 6;
   write("Quoted price", 13, true);
   const subtotal = money(quote.lines.reduce((sum, row) => sum + row[1], 0));
-  const tax = money(subtotal * RATES.taxRate);
-  const total = money(subtotal + tax);
+  const priced = quoteTax(subtotal);
   quote.lines.forEach((row) => write(row[0] + "  " + dollars(row[1]), 12, false));
   write("Subtotal  " + dollars(subtotal), 12, false);
-  write("Sales tax 7%  " + dollars(tax), 12, false);
-  write("Total  " + dollars(total), 14, true);
+  write(priced.label + "  " + dollars(priced.tax), 12, false);
+  write("Total  " + dollars(priced.total), 14, true);
   if (quote.note) write(quote.note, 10, false);
   y += 8;
   write("Customer signature", 12, true);
@@ -540,6 +558,7 @@ function sendReady() {
   const phone = document.getElementById("cphone").value.trim();
   const email = document.getElementById("cemail").value.trim();
   if (!name || !address || !phone || !email) return "Fill in the customer name, address, phone, and email first.";
+  if (!normalizeZip(document.getElementById("czip").value)) return "Enter the 5-digit zip code. City of Jackson zip codes are 8% tax. Every other zip is 7%.";
   if (signatureBlank()) return "The customer needs to sign before this can go out.";
   const quote = quoteLines();
   if (quote.unpriced) return "Fleas does not have a confirmed price yet. Ask the office before quoting it.";
