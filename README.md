@@ -73,3 +73,5 @@ Does not write to Fieldster and does not open Visio files. Three footage choices
 Send as Agreement builds the one-page PDF in the page itself, with no outside library: customer name, address, phone, email, service, quoted price, 7% sales tax, total, signature, printed name, and date. Customer email is required. Email sends to the customer and always copies office@family-termite.com. A text to the customer also opens that office copy. There is no way to skip the office.
 
 Fleas uses the same visit-style agreement, written for two visits. The first visit is the `fleas` amount in `_src/prices.config.js`. The follow-up visit is `fleasFollowUp`. Tax is still 7% of the two lines together.
+
+Pest service, outside only sits next to regular pest service. It is monthly or quarterly. The price starts at $79 up to 2,500 sq ft, then $10 per started 1,000, the same rounding as regular pest, plus 7% tax. The agreement and the email subject say "Pest service (outside only), monthly" or "Pest service (outside only), quarterly".

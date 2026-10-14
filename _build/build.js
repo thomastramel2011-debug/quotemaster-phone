@@ -17,7 +17,8 @@ const LEAKS = [
   "office@family-termite.com",
   "Scheduled as two visits",
   "Second follow-up visit",
-  "pretreatPerSqFt"
+  "pretreatPerSqFt",
+  "Pest service (outside only)"
 ];
 
 function args() {
