@@ -22,6 +22,7 @@ function agreementTerm() {
     const freq = document.getElementById("freq");
     return freq && freq.value === "onetime" ? TERM_VISIT : TERM_MONTH;
   }
+  if (service === "outside") return TERM_MONTH;
   const other = document.getElementById("other");
   const kind = other ? other.value : "";
   if (kind === "fleas") return TERM_FLEAS;
@@ -71,15 +72,20 @@ function render() {
     html += field("BV to drill", "bv", "0");
     html += yesno("Booster, 40% of post-treat", "booster");
   }
-  if (service === "pest") {
+  if (service === "pest" || service === "outside") {
     html += "<div class=\"cell\"><label>How often</label><select id=\"freq\">" +
       "<option value=\"monthly\">Monthly</option>" +
-      "<option value=\"bimonthly\">Every other month</option>" +
+      (service === "outside" ? "" :
+        "<option value=\"bimonthly\">Every other month</option>") +
       "<option value=\"quarterly\">Quarterly</option>" +
-      "<option value=\"semiannual\">Every six months</option>" +
-      "<option value=\"annual\">Once a year</option>" +
-      "<option value=\"onetime\">One-time pest</option></select></div>" +
-      "<p class=\"note\">The contract price on the sheet is per service: $109 up to 2,500 sq ft, then $10 per started 1,000. One-time pest is a separate price on the sheet, not a contract frequency.</p>";
+      (service === "outside" ? "" :
+        "<option value=\"semiannual\">Every six months</option>" +
+        "<option value=\"annual\">Once a year</option>" +
+        "<option value=\"onetime\">One-time pest</option>") +
+      "</select></div>" +
+      (service === "outside"
+        ? "<p class=\"note\">Outside only, monthly or quarterly. The price is per service: $79 up to 2,500 sq ft, then $10 per started 1,000.</p>"
+        : "<p class=\"note\">The contract price on the sheet is per service: $109 up to 2,500 sq ft, then $10 per started 1,000. One-time pest is a separate price on the sheet, not a contract frequency.</p>");
   }
   if (service === "other") {
     html = "<div class=\"cell span2\"><label>Which one</label><select id=\"other\">" +
@@ -152,6 +158,7 @@ function quoteLines() {
     if (freq === "onetime") lines.push(["One-time pest", oneTime(sqft)]);
     else lines.push(["Pest service, each visit", contractPest(sqft)]);
   }
+  if (service === "outside") lines.push([outsideOnlyTitle(), outsidePest(sqft)]);
   if (service === "other") {
     const kind = document.getElementById("other").value;
     if (kind === "mosquito") lines.push(["Mosquito", mosquito(sqft)]);
@@ -224,10 +231,17 @@ function dollars(amount) {
   return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+function outsideOnlyTitle() {
+  const freq = document.getElementById("freq");
+  const when = freq && freq.value === "quarterly" ? "quarterly" : "monthly";
+  return "Pest service (outside only), " + when;
+}
+
 function serviceTitle() {
   const service = document.getElementById("service").value;
   if (service === "pretreat") return "Pre-treatment";
   if (service === "post") return on("booster") ? "Post-treatment booster" : "Post-treatment";
+  if (service === "outside") return outsideOnlyTitle();
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
     const names = { monthly: "monthly", bimonthly: "every other month", quarterly: "quarterly", semiannual: "every six months", annual: "once a year" };
@@ -582,16 +596,24 @@ function plainAddress(value) {
   return email;
 }
 
+function agreementSubject() {
+  if (document.getElementById("service").value === "outside") return outsideOnlyTitle();
+  return "Family Termite service agreement";
+}
+
 function mailtoOfficeAndCustomer(quote) {
   const email = plainAddress(document.getElementById("cemail").value);
   const body = agreementText(quote) + "\n\nThe PDF downloaded on this phone. Attach that file before you send. The office is copied on this message.";
-  return "mailto:" + email + "?cc=" + OFFICE + "&subject=" + encodeURIComponent("Family Termite service agreement") + "&body=" + encodeURIComponent(body);
+  return "mailto:" + email + "?cc=" + OFFICE + "&subject=" + encodeURIComponent(agreementSubject()) + "&body=" + encodeURIComponent(body);
 }
 
 function mailtoOfficeCopy(quote) {
   const name = document.getElementById("cname").value.trim();
   const body = "Office copy. This agreement was also sent to the customer.\n\n" + agreementText(quote) + "\n\nThe PDF downloaded on this phone. Attach " + agreementName + ".";
-  return "mailto:" + OFFICE + "?subject=" + encodeURIComponent("Office copy: " + name) + "&body=" + encodeURIComponent(body);
+  const subject = document.getElementById("service").value === "outside"
+    ? "Office copy: " + outsideOnlyTitle() + " — " + name
+    : "Office copy: " + name;
+  return "mailto:" + OFFICE + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
 }
 
 function smsLink(phone, body) {

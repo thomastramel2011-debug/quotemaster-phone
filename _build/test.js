@@ -19,6 +19,7 @@ const LEAKS = [
   "Scheduled as two visits",
   "Second follow-up visit",
   "pretreatPerSqFt",
+  "Pest service (outside only)",
   "quote185",
   "familytermite"
 ];
@@ -109,6 +110,12 @@ function checkPricing() {
     "oneTime: oneTime(2500)," +
     "pest: contractPest(2500)," +
     "pestStep: contractPest(2501)," +
+    "outside: outsidePest(2500)," +
+    "outsideStep: outsidePest(2501)," +
+    "outsideBand: outsidePest(3500)," +
+    "outsideNext: outsidePest(3501)," +
+    "outsideTax: money(79 * 0.07)," +
+    "outsideTotal: money(79 + money(79 * 0.07))," +
     "tax: money(250 * 0.07)," +
     "total: money(250 + money(250 * 0.07))" +
     "};")();
@@ -127,6 +134,12 @@ function checkPricing() {
   assert(got.oneTime === 209, "one time " + got.oneTime);
   assert(got.pest === 109, "pest " + got.pest);
   assert(got.pestStep === 119, "pest step " + got.pestStep);
+  assert(got.outside === 79, "outside " + got.outside);
+  assert(got.outsideStep === 89, "outside step " + got.outsideStep);
+  assert(got.outsideBand === 89, "outside band " + got.outsideBand);
+  assert(got.outsideNext === 99, "outside next " + got.outsideNext);
+  assert(got.outsideTax === 5.53, "outside tax " + got.outsideTax);
+  assert(got.outsideTotal === 84.53, "outside total " + got.outsideTotal);
   assert(got.tax === 17.5, "flea tax " + got.tax);
   assert(got.total === 267.5, "flea total " + got.total);
 
@@ -361,6 +374,49 @@ async function checkBrowser() {
     await page.click("#calc");
     price = await page.evaluate(() => document.getElementById("out").innerText);
     assert(price.includes("Pest service, each visit") && price.includes("$109.00"), "pest price\n" + price);
+
+    const serviceLabels = await page.evaluate(() => Array.from(document.getElementById("service").options).map((option) => option.textContent));
+    const pestAt = serviceLabels.indexOf("Pest service");
+    assert(serviceLabels[pestAt + 1] === "Pest service, outside only", "outside option is not next to pest: " + serviceLabels.join(", "));
+    await page.select("#service", "outside");
+    const outsideFreq = await page.evaluate(() => Array.from(document.getElementById("freq").options).map((option) => option.value));
+    assert(outsideFreq.join(",") === "monthly,quarterly", "outside frequencies " + outsideFreq.join(","));
+    await page.evaluate(() => { document.getElementById("sqft").value = "2500"; });
+    await page.click("#calc");
+    price = await page.evaluate(() => document.getElementById("out").innerText);
+    assert(price.includes("Pest service (outside only), monthly") && price.includes("$79.00"), "outside monthly\n" + price);
+    assert(price.includes("Sales tax 7%") && price.includes("$5.53") && price.includes("$84.53"), "outside tax\n" + price);
+    await page.select("#freq", "quarterly");
+    await page.evaluate(() => { document.getElementById("sqft").value = "3501"; });
+    await page.click("#calc");
+    price = await page.evaluate(() => document.getElementById("out").innerText);
+    assert(price.includes("Pest service (outside only), quarterly") && price.includes("$99.00"), "outside quarterly\n" + price);
+    await page.evaluate(() => {
+      document.getElementById("cname").value = "Ada Home";
+      document.getElementById("cphone").value = "6015550100";
+      document.getElementById("caddress").value = "1 Main St";
+      document.getElementById("cemail").value = "ada@example.com";
+      const canvas = document.getElementById("sign");
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#111111";
+      ctx.fillRect(8, 8, 30, 4);
+    });
+    await page.evaluate(() => {
+      document.getElementById("agree").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    const mail = await page.evaluate(() => ({
+      customer: decodeURIComponent(document.getElementById("agree").getAttribute("href")),
+      office: decodeURIComponent(document.getElementById("officecopy").getAttribute("href"))
+    }));
+    assert(mail.customer.includes("subject=Pest service (outside only), quarterly"), "customer subject\n" + mail.customer);
+    assert(mail.customer.includes("Pest service (outside only), quarterly"), "customer agreement\n" + mail.customer);
+    assert(mail.office.includes("subject=Office copy: Pest service (outside only), quarterly"), "office subject\n" + mail.office);
+    await page.screenshot({ path: "/tmp/qm-outside.png", fullPage: true });
+    await page.evaluate(() => {
+      ["cname", "cphone", "caddress", "cemail"].forEach((id) => { document.getElementById(id).value = ""; });
+      const canvas = document.getElementById("sign");
+      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    });
 
     await page.select("#service", "other");
     const labels = await page.evaluate(() => Array.from(document.getElementById("other").options).map((option) => option.textContent));

@@ -53,6 +53,12 @@ function contractPest(sqft) {
   return money(109 + 10 * (Number.isFinite(steps) ? steps : 0));
 }
 
+// Outside-only pest uses the same 2,500 sq ft tier and started-1,000 rounding, from $79.
+function outsidePest(sqft) {
+  const steps = Math.ceil(Math.max(0, sqft - 2500) / 1000);
+  return money(79 + 10 * (Number.isFinite(steps) ? steps : 0));
+}
+
 function oneTime(sqft) {
   if (sqft > RATES.oneTimeTopSqFt) {
     const steps = Math.ceil((sqft - RATES.oneTimeTopSqFt) / RATES.oneTimeStepSqFt);
