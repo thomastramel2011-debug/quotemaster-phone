@@ -23,6 +23,7 @@ function agreementTerm() {
     return freq && freq.value === "onetime" ? TERM_VISIT : TERM_MONTH;
   }
   if (service === "outside") return TERM_MONTH;
+  if (service === "inside") return TERM_MONTH;
   const other = document.getElementById("other");
   const kind = other ? other.value : "";
   if (kind === "fleas") return TERM_FLEAS;
@@ -72,19 +73,22 @@ function render() {
     html += field("BV to drill", "bv", "0");
     html += yesno("Booster, 40% of post-treat", "booster");
   }
-  if (service === "pest" || service === "outside") {
+  if (service === "pest" || service === "outside" || service === "inside") {
+    const limited = service === "outside" || service === "inside";
     html += "<div class=\"cell\"><label>How often</label><select id=\"freq\">" +
       "<option value=\"monthly\">Monthly</option>" +
-      (service === "outside" ? "" :
+      (limited ? "" :
         "<option value=\"bimonthly\">Every other month</option>") +
       "<option value=\"quarterly\">Quarterly</option>" +
-      (service === "outside" ? "" :
+      (limited ? "" :
         "<option value=\"semiannual\">Every six months</option>" +
         "<option value=\"annual\">Once a year</option>" +
         "<option value=\"onetime\">One-time pest</option>") +
       "</select></div>" +
       (service === "outside"
         ? "<p class=\"note\">Outside only, monthly or quarterly. The price is per service: $79 up to 2,500 sq ft, then $10 per started 1,000.</p>"
+        : service === "inside"
+        ? "<p class=\"note\">Inside only, monthly or quarterly. The price is per service: $79 up to 2,500 sq ft, then $10 per started 1,000.</p>"
         : "<p class=\"note\">The contract price on the sheet is per service: $109 up to 2,500 sq ft, then $10 per started 1,000. One-time pest is a separate price on the sheet, not a contract frequency.</p>");
   }
   if (service === "other") {
@@ -159,6 +163,7 @@ function quoteLines() {
     else lines.push(["Pest service, each visit", contractPest(sqft)]);
   }
   if (service === "outside") lines.push([outsideOnlyTitle(), outsidePest(sqft)]);
+  if (service === "inside") lines.push([insideOnlyTitle(), insidePest(sqft)]);
   if (service === "other") {
     const kind = document.getElementById("other").value;
     if (kind === "mosquito") lines.push(["Mosquito", mosquito(sqft)]);
@@ -252,11 +257,18 @@ function outsideOnlyTitle() {
   return "Pest service (outside only), " + when;
 }
 
+function insideOnlyTitle() {
+  const freq = document.getElementById("freq");
+  const when = freq && freq.value === "quarterly" ? "quarterly" : "monthly";
+  return "Pest service (inside only), " + when;
+}
+
 function serviceTitle() {
   const service = document.getElementById("service").value;
   if (service === "pretreat") return "Pre-treatment";
   if (service === "post") return on("booster") ? "Post-treatment booster" : "Post-treatment";
   if (service === "outside") return outsideOnlyTitle();
+  if (service === "inside") return insideOnlyTitle();
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
     const names = { monthly: "monthly", bimonthly: "every other month", quarterly: "quarterly", semiannual: "every six months", annual: "once a year" };
@@ -616,7 +628,9 @@ function plainAddress(value) {
 }
 
 function agreementSubject() {
-  if (document.getElementById("service").value === "outside") return outsideOnlyTitle();
+  const service = document.getElementById("service").value;
+  if (service === "outside") return outsideOnlyTitle();
+  if (service === "inside") return insideOnlyTitle();
   return "Family Termite service agreement";
 }
 
@@ -629,8 +643,11 @@ function mailtoOfficeAndCustomer(quote) {
 function mailtoOfficeCopy(quote) {
   const name = document.getElementById("cname").value.trim();
   const body = "Office copy. This agreement was also sent to the customer.\n\n" + agreementText(quote) + "\n\nThe PDF downloaded on this phone. Attach " + agreementName + ".";
-  const subject = document.getElementById("service").value === "outside"
+  const service = document.getElementById("service").value;
+  const subject = service === "outside"
     ? "Office copy: " + outsideOnlyTitle() + " — " + name
+    : service === "inside"
+    ? "Office copy: " + insideOnlyTitle() + " — " + name
     : "Office copy: " + name;
   return "mailto:" + OFFICE + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
 }

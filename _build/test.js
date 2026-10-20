@@ -20,6 +20,7 @@ const LEAKS = [
   "Second follow-up visit",
   "pretreatPerSqFt",
   "Pest service (outside only)",
+  "Pest service (inside only)",
   "quote185",
   "familytermite"
 ];
@@ -116,6 +117,26 @@ function checkPricing() {
     "outsideNext: outsidePest(3501)," +
     "outsideTax: money(79 * taxRateForZip('39042'))," +
     "outsideTotal: money(79 + money(79 * taxRateForZip('39042')))," +
+    "inside: insidePest(2500)," +
+    "insideStep: insidePest(2501)," +
+    "insideBand: insidePest(3500)," +
+    "insideNext: insidePest(3501)," +
+    "insideLarge: insidePest(10000)," +
+    "insideTop: insidePest(12500)," +
+    "insideTax: money(insidePest(2500) * taxRateForZip('39042'))," +
+    "insideTotal: money(insidePest(2500) + money(insidePest(2500) * taxRateForZip('39042')))," +
+    "insideJacksonTax: money(insidePest(2500) * taxRateForZip('39201'))," +
+    "insideJacksonTotal: money(insidePest(2500) + money(insidePest(2500) * taxRateForZip('39201')))," +
+    "samePrice: [0, 1000, 2500, 2501, 3500, 3501, 4500, 5000, 7500, 10000, 12500].every(function (sqft) {" +
+    "  return insidePest(sqft) === outsidePest(sqft);" +
+    "})," +
+    "sameTax: [2500, 2501, 3500, 3501, 10000, 12500].every(function (sqft) {" +
+    "  return ['39042', '39201', '39204', '39272'].every(function (zip) {" +
+    "    var price = insidePest(sqft);" +
+    "    var rate = taxRateForZip(zip);" +
+    "    return price === outsidePest(sqft) && money(price * rate) === money(outsidePest(sqft) * rate);" +
+    "  });" +
+    "})," +
     "jacksonRate: taxRateForZip('39204')," +
     "jacksonPlus4: taxRateForZip('39204-1234')," +
     "tougaloo: taxRateForZip('39174')," +
@@ -153,6 +174,18 @@ function checkPricing() {
   assert(got.outsideNext === 99, "outside next " + got.outsideNext);
   assert(got.outsideTax === 5.53, "outside tax " + got.outsideTax);
   assert(got.outsideTotal === 84.53, "outside total " + got.outsideTotal);
+  assert(got.inside === 79, "inside " + got.inside);
+  assert(got.insideStep === 89, "inside step " + got.insideStep);
+  assert(got.insideBand === 89, "inside band " + got.insideBand);
+  assert(got.insideNext === 99, "inside next " + got.insideNext);
+  assert(got.insideLarge === 159, "inside 10000 " + got.insideLarge);
+  assert(got.insideTop === 179, "inside 12500 " + got.insideTop);
+  assert(got.insideTax === 5.53, "inside tax " + got.insideTax);
+  assert(got.insideTotal === 84.53, "inside total " + got.insideTotal);
+  assert(got.insideJacksonTax === 6.32, "inside jackson tax " + got.insideJacksonTax);
+  assert(got.insideJacksonTotal === 85.32, "inside jackson total " + got.insideJacksonTotal);
+  assert(got.samePrice === true, "inside and outside prices differ");
+  assert(got.sameTax === true, "inside and outside tax differ");
   assert(got.jacksonRate === 0.08, "jackson rate " + got.jacksonRate);
   assert(got.jacksonPlus4 === 0.08, "jackson zip+4 " + got.jacksonPlus4);
   assert(got.tougaloo === 0.08, "tougaloo rate " + got.tougaloo);
@@ -412,6 +445,7 @@ async function checkBrowser() {
     const serviceLabels = await page.evaluate(() => Array.from(document.getElementById("service").options).map((option) => option.textContent));
     const pestAt = serviceLabels.indexOf("Pest service");
     assert(serviceLabels[pestAt + 1] === "Pest service, outside only", "outside option is not next to pest: " + serviceLabels.join(", "));
+    assert(serviceLabels[pestAt + 2] === "Pest service, inside only", "inside option is not next to outside: " + serviceLabels.join(", "));
     await page.select("#service", "outside");
     const outsideFreq = await page.evaluate(() => Array.from(document.getElementById("freq").options).map((option) => option.value));
     assert(outsideFreq.join(",") === "monthly,quarterly", "outside frequencies " + outsideFreq.join(","));
@@ -455,6 +489,57 @@ async function checkBrowser() {
     assert(mail.customer.includes("39201"), "customer zip\n" + mail.customer);
     await page.evaluate(() => { document.getElementById("czip").value = "39042"; });
     await page.screenshot({ path: "/tmp/qm-outside.png", fullPage: true });
+
+    await page.select("#service", "inside");
+    const insideFreq = await page.evaluate(() => Array.from(document.getElementById("freq").options).map((option) => option.value));
+    assert(insideFreq.join(",") === "monthly,quarterly", "inside frequencies " + insideFreq.join(","));
+    const insideSamples = [
+      ["2500", "39042", "monthly", "Pest service (inside only), monthly", "$79.00", "Sales tax 7%", "$5.53", "$84.53"],
+      ["2501", "39042", "monthly", "Pest service (inside only), monthly", "$89.00", "Sales tax 7%", "$6.23", "$95.23"],
+      ["3500", "39204", "quarterly", "Pest service (inside only), quarterly", "$89.00", "Sales tax 8%", "$7.12", "$96.12"],
+      ["3501", "39201", "quarterly", "Pest service (inside only), quarterly", "$99.00", "Sales tax 8%", "$7.92", "$106.92"],
+      ["10000", "39042", "monthly", "Pest service (inside only), monthly", "$159.00", "Sales tax 7%", "$11.13", "$170.13"],
+      ["12500", "39206", "quarterly", "Pest service (inside only), quarterly", "$179.00", "Sales tax 8%", "$14.32", "$193.32"]
+    ];
+    for (const sample of insideSamples) {
+      await page.select("#service", "inside");
+      await page.select("#freq", sample[2]);
+      await page.evaluate((sqft, zip) => {
+        document.getElementById("sqft").value = sqft;
+        document.getElementById("czip").value = zip;
+      }, sample[0], sample[1]);
+      await page.click("#calc");
+      const insidePrice = await page.evaluate(() => document.getElementById("out").innerText);
+      await page.select("#service", "outside");
+      await page.select("#freq", sample[2]);
+      await page.evaluate((sqft, zip) => {
+        document.getElementById("sqft").value = sqft;
+        document.getElementById("czip").value = zip;
+      }, sample[0], sample[1]);
+      await page.click("#calc");
+      const outsidePrice = await page.evaluate(() => document.getElementById("out").innerText);
+      const normalize = (text) => text.replace(/inside only/gi, "limited").replace(/outside only/gi, "limited");
+      assert(normalize(insidePrice) === normalize(outsidePrice), "inside and outside differ at " + sample[0] + " " + sample[1] + "\n" + insidePrice + "\n" + outsidePrice);
+      assert(insidePrice.includes(sample[3]) && insidePrice.includes(sample[4]) && insidePrice.includes(sample[5]) && insidePrice.includes(sample[6]) && insidePrice.includes(sample[7]), "inside sample " + sample.join(" ") + "\n" + insidePrice);
+    }
+    await page.select("#service", "inside");
+    await page.select("#freq", "quarterly");
+    await page.evaluate(() => {
+      document.getElementById("sqft").value = "3501";
+      document.getElementById("czip").value = "39201";
+      document.getElementById("agree").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    const insideMail = await page.evaluate(() => ({
+      customer: decodeURIComponent(document.getElementById("agree").getAttribute("href")),
+      office: decodeURIComponent(document.getElementById("officecopy").getAttribute("href"))
+    }));
+    assert(insideMail.customer.includes("subject=Pest service (inside only), quarterly"), "inside customer subject\n" + insideMail.customer);
+    assert(insideMail.customer.includes("Pest service (inside only), quarterly"), "inside customer agreement\n" + insideMail.customer);
+    assert(insideMail.customer.includes("$99.00") && insideMail.customer.includes("Sales tax 8%") && insideMail.customer.includes("$7.92") && insideMail.customer.includes("$106.92"), "inside agreement total\n" + insideMail.customer);
+    assert(insideMail.office.includes("subject=Office copy: Pest service (inside only), quarterly"), "inside office subject\n" + insideMail.office);
+    await page.evaluate(() => { document.getElementById("czip").value = "39042"; });
+    await page.click("#calc");
+    await page.screenshot({ path: "/tmp/qm-inside.png", fullPage: true });
     await page.evaluate(() => {
       ["cname", "cphone", "caddress", "cemail"].forEach((id) => { document.getElementById(id).value = ""; });
       const canvas = document.getElementById("sign");

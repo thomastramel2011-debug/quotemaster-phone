@@ -76,4 +76,6 @@ Fleas uses the same visit-style agreement, written for two visits. The first vis
 
 Pest service, outside only sits next to regular pest service. It is monthly or quarterly. The price starts at $79 up to 2,500 sq ft, then $10 per started 1,000, the same rounding as regular pest, plus 8% tax in the City of Jackson and 7% everywhere else. The agreement and the email subject say "Pest service (outside only), monthly" or "Pest service (outside only), quarterly".
 
+Pest service, inside only sits next to outside only. It is monthly or quarterly and uses that same $79 price, the same $10 per started 1,000, and the same 8% or 7% tax. The agreement and the email subject say "Pest service (inside only), monthly" or "Pest service (inside only), quarterly".
+
 City of Jackson zips, from the Census Bureau 2020 ZCTA-to-Place file for Jackson city, are 39174, 39201, 39202, 39203, 39204, 39206, 39210, 39211, 39212, 39213, 39216, 39217, and 39269. The list is in `_src/pricing.js`.
