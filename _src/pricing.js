@@ -100,6 +100,12 @@ function outsidePest(sqft) {
   return money(79 + 10 * (Number.isFinite(steps) ? steps : 0));
 }
 
+// Inside-only pest is priced exactly like outside-only: $79, then $10 per started 1,000.
+function insidePest(sqft) {
+  const steps = Math.ceil(Math.max(0, sqft - 2500) / 1000);
+  return money(79 + 10 * (Number.isFinite(steps) ? steps : 0));
+}
+
 function oneTime(sqft) {
   if (sqft > RATES.oneTimeTopSqFt) {
     const steps = Math.ceil((sqft - RATES.oneTimeTopSqFt) / RATES.oneTimeStepSqFt);

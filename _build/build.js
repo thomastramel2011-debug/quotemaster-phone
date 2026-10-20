@@ -18,7 +18,8 @@ const LEAKS = [
   "Scheduled as two visits",
   "Second follow-up visit",
   "pretreatPerSqFt",
-  "Pest service (outside only)"
+  "Pest service (outside only)",
+  "Pest service (inside only)"
 ];
 
 function args() {
