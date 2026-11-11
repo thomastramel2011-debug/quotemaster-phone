@@ -13,3 +13,9 @@ const ONE_TIME_PRICES = {
   fleas: 250,
   fleasFollowUp: 0
 };
+
+// Wildlife inspection and trapping show only when this is true.
+// Leave it true so those lines show. Set it to false to hide them
+// when the company does not hold the Mississippi nuisance-wildlife authority.
+// Check with the office before quoting wildlife.
+const OFFER_WILDLIFE = true;

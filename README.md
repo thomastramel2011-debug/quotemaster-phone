@@ -79,3 +79,19 @@ Pest service, outside only sits next to regular pest service. It is monthly or q
 Pest service, inside only sits next to outside only. It is monthly or quarterly and uses that same $79 price, the same $10 per started 1,000, and the same 8% or 7% tax. The agreement and the email subject say "Pest service (inside only), monthly" or "Pest service (inside only), quarterly".
 
 City of Jackson zips, from the Census Bureau 2020 ZCTA-to-Place file for Jackson city, are 39174, 39201, 39202, 39203, 39204, 39206, 39210, 39211, 39212, 39213, 39216, 39217, and 39269. The list is in `_src/pricing.js`.
+
+## Winter and outdoor lines
+
+Rodent station service sits with Rodent stations. It is monthly, every other month, or quarterly. The visit is $15 a station with a $45 minimum. Four stations are $60. The boxes stay $25 each, and rat cleanout stays $250. The agreement is month to month. The email subject is "Rodent station service, monthly", "Rodent station service, bimonthly", or "Rodent station service, quarterly".
+
+Rodent / foundation exclusion is $495 for the first 10 openings, then $45 each. Sixteen openings are $765. It is this visit only.
+
+Vapor barrier is $0.95 per crawl square foot, the existing Excel rate. Crawl-space encapsulation is $4.50 per crawl square foot with a $4,500 minimum. 1,200 square feet is $5,400. The dehumidifier is an optional add-on at $995 and starts off. Drainage and sump are not priced. Attic insulation removal and replacement shows removal and new insulation at $1.50 per square foot each. The $4,950 minimum applies to the whole job. 1,200 square feet is $4,950. 2,000 square feet is $6,000.
+
+Wildlife inspection is $149. The office can waive it to $0. Wildlife trapping is $349 for the first animal and $99 for each additional one. Three animals are $547. Bat houses are $40 each. Wildlife inspection and trapping show only when `OFFER_WILDLIFE` in `_src/prices.config.js` is true. It ships true. Check with the office before quoting wildlife. Set it to false to hide those two lines.
+
+Driveway pressure washing is $0.32 per square foot with a $165 minimum. 800 square feet is $256. Gutter cleaning is $0.70 per linear foot with a $125 minimum. 200 feet is $140. Leaf and limb removal is $275 for a quarter truck, $450 for a half, $600 for three quarters, and $725 for a full truck. All three are this visit only.
+
+A winter-date prepay control on exclusion, encapsulation, and attic takes 10% off that job when it is turned on. It ships off. On full pest service, an annual prepay choice can take 3% off the year or add mosquito at $0. It ships off. Neither offer changes a quote until someone turns it on.
+
+These lines use the same zip tax as the rest of the quote. There is no commercial price. After a price change, seal the page again.
