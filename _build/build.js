@@ -19,7 +19,10 @@ const LEAKS = [
   "Second follow-up visit",
   "pretreatPerSqFt",
   "Pest service (outside only)",
-  "Pest service (inside only)"
+  "Pest service (inside only)",
+  "Crawl-space encapsulation",
+  "Driveway pressure washing",
+  "Check with the office before quoting wildlife."
 ];
 
 function args() {

@@ -4,6 +4,56 @@ function field(label, id, value) {
 function yesno(label, id) {
   return "<div class=\"cell\"><label>" + label + "</label><select id=\"" + id + "\"><option value=\"0\">No</option><option value=\"1\">Yes</option></select></div>";
 }
+function countField(label, id, value) {
+  return "<div class=\"cell\"><label>" + label + "</label><input id=\"" + id + "\" inputmode=\"numeric\" value=\"" + value + "\"></div>";
+}
+function winterToggle() {
+  return "<div class=\"cell span2\"><label>Winter-date prepay, 10% off</label><select id=\"winter\"><option value=\"0\" selected>No</option><option value=\"1\">Yes</option></select></div>" +
+    "<p class=\"note\">Off unless the customer prepays and takes a scheduled winter date. 10% off this job.</p>";
+}
+function pestPrepayFields() {
+  return "<div class=\"cell span2\" id=\"prepaywrap\"><label>Annual prepay offer</label><select id=\"prepay\">" +
+    "<option value=\"off\" selected>Off</option>" +
+    "<option value=\"year\">3% off a prepaid year</option>" +
+    "<option value=\"mosquito\">One free mosquito treatment</option>" +
+    "</select></div>" +
+    "<p class=\"note\" id=\"prepaynote\">Off unless you turn it on. 3% off a full year of this pest service if prepaid, or one mosquito treatment at $0.</p>";
+}
+function otherPicker() {
+  const wildlifeOptions = offerWildlife()
+    ? "<optgroup label=\"Wildlife (check with the office)\">" +
+      "<option value=\"wildlifeInspect\">Wildlife inspection</option>" +
+      "<option value=\"wildlife\">Wildlife trapping and removal</option>" +
+      "</optgroup>"
+    : "";
+  const wildlifeNote = offerWildlife()
+    ? "<p class=\"note\">Check with the office before quoting wildlife.</p>"
+    : "<p class=\"note\">Wildlife inspection and trapping: Ask the office.</p>";
+  return "<div class=\"cell span2\"><label>Which one</label><select id=\"other\">" +
+    "<option value=\"mosquito\">Mosquito</option>" +
+    "<option value=\"rodent\">Rodent stations</option>" +
+    "<option value=\"rodentService\">Rodent station service, each visit</option>" +
+    "<option value=\"rat\">Rat cleanout</option>" +
+    "<optgroup label=\"Winter / exclusion\">" +
+    "<option value=\"exclusion\">Rodent / foundation exclusion</option>" +
+    "<option value=\"vapor\">Vapor barrier</option>" +
+    "<option value=\"encapsulation\">Crawl-space encapsulation</option>" +
+    "<option value=\"attic\">Attic insulation removal and replacement</option>" +
+    "<option value=\"bat\">Bat house</option>" +
+    "</optgroup>" +
+    "<optgroup label=\"Outdoor / winter\">" +
+    "<option value=\"driveway\">Driveway pressure washing</option>" +
+    "<option value=\"gutter\">Gutter cleaning</option>" +
+    "<option value=\"leaves\">Leaf and limb removal</option>" +
+    "</optgroup>" +
+    wildlifeOptions +
+    "<optgroup label=\"One-time service\">" +
+    "<option value=\"onetime\">One-time pest</option>" +
+    "<option value=\"fleas\">Fleas</option>" +
+    "</optgroup></select></div>" +
+    wildlifeNote +
+    "<div id=\"otherfields\"></div>";
+}
 // Sheet columns C-EJ and C-BV. Priced only at the drilled rate, not also at the linear-foot rate.
 const POST_EXTRAS = [
   ["Expansion joints, linear feet", "ej"],
@@ -27,7 +77,8 @@ function agreementTerm() {
   const other = document.getElementById("other");
   const kind = other ? other.value : "";
   if (kind === "fleas") return TERM_FLEAS;
-  if (kind === "rat" || kind === "onetime") return TERM_VISIT;
+  if (kind === "rodentService") return TERM_MONTH;
+  if (kind === "rat" || kind === "onetime" || kind === "exclusion" || kind === "vapor" || kind === "encapsulation" || kind === "attic" || kind === "wildlifeInspect" || kind === "wildlife" || kind === "bat" || kind === "driveway" || kind === "gutter" || kind === "leaves") return TERM_VISIT;
   return TERM_MONTH;
 }
 
@@ -90,18 +141,9 @@ function render() {
         : service === "inside"
         ? "<p class=\"note\">Inside only, monthly or quarterly. The price is per service: $79 up to 2,500 sq ft, then $10 per started 1,000.</p>"
         : "<p class=\"note\">The contract price on the sheet is per service: $109 up to 2,500 sq ft, then $10 per started 1,000. One-time pest is a separate price on the sheet, not a contract frequency.</p>");
+    if (service === "pest") html += pestPrepayFields();
   }
-  if (service === "other") {
-    html = "<div class=\"cell span2\"><label>Which one</label><select id=\"other\">" +
-      "<option value=\"mosquito\">Mosquito</option>" +
-      "<option value=\"rodent\">Rodent stations</option>" +
-      "<option value=\"rat\">Rat cleanout</option>" +
-      "<optgroup label=\"One-time service\">" +
-      "<option value=\"onetime\">One-time pest</option>" +
-      "<option value=\"fleas\">Fleas</option>" +
-      "</optgroup></select></div>" +
-      "<div id=\"otherfields\"></div>";
-  }
+  if (service === "other") html = otherPicker();
   document.getElementById("panel").innerHTML = html;
   const other = document.getElementById("other");
   if (other) {
@@ -110,6 +152,64 @@ function render() {
       let extra = "";
       if (kind === "mosquito" || kind === "onetime") extra = field("Square feet", "sqft", "0");
       if (kind === "rodent") extra = field("Number of stations", "stations", "0");
+      if (kind === "rodentService") {
+        extra = countField("Number of stations", "stations", "0") +
+          "<div class=\"cell\"><label>How often</label><select id=\"freq\">" +
+          "<option value=\"monthly\">Monthly</option>" +
+          "<option value=\"bimonthly\">Every other month</option>" +
+          "<option value=\"quarterly\">Quarterly</option>" +
+          "</select></div>" +
+          "<p class=\"note\">Per visit: $15 a station, $45 minimum. This is the service, not the boxes. Boxes are $25 each under Rodent stations. Rat cleanout is $250. Monthly, every other month, or quarterly.</p>";
+      }
+      if (kind === "exclusion") {
+        extra = countField("Openings to seal", "openings", "0") +
+          winterToggle() +
+          "<p class=\"note\">$495 includes the first 10 openings, then $45 each.</p>";
+      }
+      if (kind === "vapor") {
+        extra = field("Crawl square feet", "crawlsqft", "0") +
+          "<p class=\"note\">$0.95 per square foot of crawl space.</p>";
+      }
+      if (kind === "encapsulation") {
+        extra = field("Crawl square feet", "crawlsqft", "0") +
+          yesno("Crawl-space dehumidifier, installed", "dehu") +
+          winterToggle() +
+          "<p class=\"note\">Dehumidifier, drainage, and sump are separate. Give this quote free when a tech is already writing an exclusion. Drainage and sump are quoted after inspection.</p>";
+      }
+      if (kind === "attic") {
+        extra = field("Attic square feet", "atticsqft", "0") +
+          winterToggle() +
+          "<p class=\"note\">Does not include wiring, roof repairs, asbestos, or heavy mold work. Confirm equipment or a sub before promising a date. Removal and new insulation are each $1.50 per square foot. The $4,950 minimum applies to the whole job.</p>";
+      }
+      if (kind === "wildlifeInspect") {
+        extra = yesno("Waive inspection fee", "waive") +
+          "<p class=\"note\">$149, or $0 when removal or exclusion is on the same agreement. Waive starts off.</p>";
+      }
+      if (kind === "wildlife") {
+        extra = countField("Number of animals", "animals", "1") +
+          "<p class=\"note\">The first animal is $349 and each additional animal is $99. Do not schedule bat exclusion as a winter job. The quote can be written now. The work is scheduled in the legal season. Exclusion and attic cleanup are separate lines.</p>";
+      }
+      if (kind === "bat") {
+        extra = countField("Number of bat houses", "bathouses", "1") +
+          "<p class=\"note\">$40 each. Do not schedule bat exclusion as a winter job. The quote can be written now. The work is scheduled in the legal season.</p>";
+      }
+      if (kind === "driveway") {
+        extra = field("Driveway square feet", "drivewaysqft", "0") +
+          "<p class=\"note\">Oil or rust stain treatment, sealing, walks, and a house wash are separate if needed.</p>";
+      }
+      if (kind === "gutter") {
+        extra = field("Gutter linear feet", "gutterlnft", "0") +
+          "<p class=\"note\">Includes clearing the gutters and flushing the downspouts, and hauling the debris. Gutter repairs and new guards are separate if found.</p>";
+      }
+      if (kind === "leaves") {
+        extra = "<div class=\"cell span2\"><label>Truck load</label><select id=\"quarters\">" +
+          "<option value=\"1\">Quarter truck</option>" +
+          "<option value=\"2\">Half truck</option>" +
+          "<option value=\"3\">Three-quarter truck</option>" +
+          "<option value=\"4\">Full truck</option>" +
+          "</select></div>" +
+          "<p class=\"note\">Includes gathering leaves, cutting limbs as needed to load, and hauling the debris off the property. Does not include taking down a standing tree or a tree on the roof.</p>";
+      }
       if (kind === "fleas") {
         const follow = configuredVisitPrice("fleasFollowUp");
         const amount = follow.status === "ok" ? dollars(follow.amount) : "not set";
@@ -123,7 +223,14 @@ function render() {
     fill();
   }
   const freq = document.getElementById("freq");
-  if (freq) freq.addEventListener("change", updateTerm);
+  if (freq) freq.addEventListener("change", () => {
+    const hide = freq.value === "onetime";
+    const wrap = document.getElementById("prepaywrap");
+    const note = document.getElementById("prepaynote");
+    if (wrap) wrap.hidden = hide;
+    if (note) note.hidden = hide;
+    updateTerm();
+  });
   refreshOut();
   updateTerm();
 }
@@ -136,12 +243,167 @@ function num(id) {
   const n = parseFloat(el.value);
   return Number.isFinite(n) ? n : 0;
 }
+function intNum(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const n = parseInt(el.value, 10);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
 function on(id) {
   const el = document.getElementById(id);
   return !!(el && el.value === "1");
 }
 function line(label, amount) {
   return "<div class=\"row\"><span>" + label + "</span><b>" + dollars(amount) + "</b></div>";
+}
+
+function namedSubjectKind(kind) {
+  return kind === "rodentService" || kind === "exclusion" || kind === "vapor" || kind === "encapsulation" || kind === "attic" || kind === "wildlifeInspect" || kind === "wildlife" || kind === "bat" || kind === "driveway" || kind === "gutter" || kind === "leaves";
+}
+
+function rodentServiceTitle() {
+  const freq = document.getElementById("freq");
+  const names = { monthly: "monthly", bimonthly: "bimonthly", quarterly: "quarterly" };
+  const when = freq && names[freq.value] ? names[freq.value] : "monthly";
+  return "Rodent station service, " + when;
+}
+
+function leafLoadTitle(quarters) {
+  const names = { 1: "quarter truck", 2: "half truck", 3: "three-quarter truck", 4: "full truck" };
+  return "Leaf and limb removal, " + (names[quarters] || "quarter truck");
+}
+
+function withWinter(lines, job, note) {
+  if (on("winter")) {
+    const discounted = winterDatePrice(job);
+    lines.push(["Winter-date prepay discount (10%)", money(discounted - job)]);
+    const extra = "Winter-date prepay discount, 10% off, for a scheduled winter date.";
+    note = note ? note + " " + extra : extra;
+  }
+  return { lines: lines, note: note };
+}
+
+function atticQuote(sqft) {
+  const parts = atticParts(sqft);
+  const lines = [
+    ["Attic insulation removal", parts.removal],
+    ["New blown-in insulation", parts.insulation]
+  ];
+  let note = "Does not include wiring, roof repairs, asbestos, or heavy mold work.";
+  if (parts.minimumApplies) {
+    lines.push(["Minimum applies", money(parts.job - parts.sum)]);
+    note += " The $4,950 minimum applies to the whole job.";
+  }
+  return withWinter(lines, parts.job, note);
+}
+
+function needQuote(message) {
+  return { lines: [], note: "", need: message };
+}
+
+function quoteOther() {
+  const kind = document.getElementById("other").value;
+  if ((kind === "wildlife" || kind === "wildlifeInspect") && !offerWildlife()) {
+    return { lines: [], note: "", unpriced: "wildlife" };
+  }
+  if (kind === "mosquito") return { lines: [["Mosquito", mosquito(num("sqft"))]], note: "" };
+  if (kind === "rodent") return { lines: [["Rodent stations", money(num("stations") * RATES.rodentBox)]], note: "" };
+  if (kind === "rat") return { lines: [["Rat cleanout", RATES.ratCleanout]], note: "" };
+  if (kind === "onetime") return { lines: [["One-time pest", oneTime(num("sqft"))]], note: "" };
+  if (kind === "fleas") {
+    const first = configuredVisitPrice("fleas");
+    const follow = configuredVisitPrice("fleasFollowUp");
+    if (first.status !== "ok" || follow.status !== "ok") return { lines: [], note: "", unpriced: "fleas" };
+    return {
+      lines: [["Fleas, first visit", first.amount], ["Second follow-up visit", follow.amount]],
+      note: "Scheduled as two visits. The second follow-up visit is " + dollars(follow.amount) + "."
+    };
+  }
+  if (kind === "rodentService") {
+    const stations = intNum("stations");
+    if (stations < 1) return needQuote("Enter the number of stations.");
+    return { lines: [[rodentServiceTitle(), rodentStationService(stations)]], note: "" };
+  }
+  if (kind === "exclusion") {
+    const openings = intNum("openings");
+    if (openings < 1) return needQuote("Enter the number of openings.");
+    const job = exclusionPrice(openings);
+    return withWinter([["Rodent / foundation exclusion", job]], job, "");
+  }
+  if (kind === "vapor") {
+    const crawl = num("crawlsqft");
+    if (crawl <= 0) return needQuote("Enter the crawl-space square feet.");
+    return { lines: [["Vapor barrier", vaporBarrier(crawl)]], note: "" };
+  }
+  if (kind === "encapsulation") {
+    const crawl = num("crawlsqft");
+    if (crawl <= 0) return needQuote("Enter the crawl-space square feet.");
+    const job = encapsulationPrice(crawl);
+    const priced = withWinter(
+      [["Crawl-space encapsulation", job]],
+      job,
+      on("dehu")
+        ? "Drainage and sump are quoted after inspection."
+        : "Dehumidifier, drainage, and sump are separate. Drainage and sump are quoted after inspection."
+    );
+    if (on("dehu")) priced.lines.push(["Crawl-space dehumidifier, installed", money(RATES.dehumidifierInstalled)]);
+    return priced;
+  }
+  if (kind === "attic") {
+    const attic = num("atticsqft");
+    if (attic <= 0) return needQuote("Enter the attic square feet.");
+    return atticQuote(attic);
+  }
+  if (kind === "wildlifeInspect") {
+    const waived = on("waive");
+    return {
+      lines: [["Wildlife inspection", wildlifeInspectionPrice(waived)]],
+      note: waived ? "Inspection fee waived because removal or exclusion is on the same agreement." : ""
+    };
+  }
+  if (kind === "wildlife") {
+    const animals = intNum("animals");
+    if (animals < 1) return needQuote("Enter the number of animals, at least 1.");
+    return {
+      lines: [["Wildlife trapping and removal", wildlifeRemoval(animals)]],
+      note: "Bat exclusion is not a winter job. This quote can be written now. The work is scheduled in the legal season."
+    };
+  }
+  if (kind === "bat") {
+    const count = intNum("bathouses");
+    if (count < 1) return needQuote("Enter the number of bat houses.");
+    return {
+      lines: [["Bat house", batHousePrice(count)]],
+      note: "Bat exclusion is not a winter job. This quote can be written now. The work is scheduled in the legal season."
+    };
+  }
+  if (kind === "driveway") {
+    const driveway = num("drivewaysqft");
+    if (driveway <= 0) return needQuote("Enter the driveway square feet.");
+    return {
+      lines: [["Driveway pressure washing", drivewayWash(driveway)]],
+      note: "Oil or rust stain treatment, sealing, walks, and a house wash are separate if needed."
+    };
+  }
+  if (kind === "gutter") {
+    const feet = num("gutterlnft");
+    if (feet <= 0) return needQuote("Enter the gutter linear feet.");
+    return {
+      lines: [["Gutter cleaning", gutterCleaning(feet)]],
+      note: "Includes clearing the gutters and flushing the downspouts, and hauling the debris. Gutter repairs and new guards are separate if found."
+    };
+  }
+  if (kind === "leaves") {
+    const quarters = intNum("quarters");
+    const price = leafLimbRemoval(quarters);
+    if (!price) return needQuote("Choose a truck load from a quarter through a full truck.");
+    return {
+      lines: [[leafLoadTitle(quarters), price]],
+      note: "Includes gathering leaves, cutting limbs as needed to load, and hauling the debris off the property. Does not include taking down a standing tree or a tree on the roof."
+    };
+  }
+  return { lines: [], note: "" };
 }
 
 function quoteLines() {
@@ -159,25 +421,29 @@ function quoteLines() {
   }
   if (service === "pest") {
     const freq = document.getElementById("freq").value;
+    const prepayEl = document.getElementById("prepay");
+    const offer = prepayEl && freq !== "onetime" ? prepayEl.value : "off";
     if (freq === "onetime") lines.push(["One-time pest", oneTime(sqft)]);
-    else lines.push(["Pest service, each visit", contractPest(sqft)]);
+    else if (offer === "year") {
+      const visit = contractPest(sqft);
+      const yearTotal = pestYearTotal(sqft, freq);
+      const discounted = annualPrepayPrice(yearTotal);
+      lines.push(["Pest service, prepaid year", yearTotal]);
+      lines.push(["Annual prepay discount (3%)", money(discounted - yearTotal)]);
+      note = "3% off a full year of pest service when prepaid. Per visit before the offer: " + dollars(visit) + ".";
+    } else if (offer === "mosquito") {
+      lines.push(["Pest service, each visit", contractPest(sqft)]);
+      lines.push(["Mosquito, prepaid-year add-on", 0]);
+      note = "Prepaid-year add-on.";
+    } else lines.push(["Pest service, each visit", contractPest(sqft)]);
   }
   if (service === "outside") lines.push([outsideOnlyTitle(), outsidePest(sqft)]);
   if (service === "inside") lines.push([insideOnlyTitle(), insidePest(sqft)]);
   if (service === "other") {
-    const kind = document.getElementById("other").value;
-    if (kind === "mosquito") lines.push(["Mosquito", mosquito(sqft)]);
-    if (kind === "rodent") lines.push(["Rodent stations", money(num("stations") * RATES.rodentBox)]);
-    if (kind === "rat") lines.push(["Rat cleanout", RATES.ratCleanout]);
-    if (kind === "onetime") lines.push(["One-time pest", oneTime(sqft)]);
-    if (kind === "fleas") {
-      const first = configuredVisitPrice("fleas");
-      const follow = configuredVisitPrice("fleasFollowUp");
-      if (first.status !== "ok" || follow.status !== "ok") return { lines: [], note: "", unpriced: "fleas" };
-      lines.push(["Fleas, first visit", first.amount]);
-      lines.push(["Second follow-up visit", follow.amount]);
-      note = "Scheduled as two visits. The second follow-up visit is " + dollars(follow.amount) + ".";
-    }
+    const otherQuote = quoteOther();
+    if (otherQuote.unpriced || otherQuote.need) return otherQuote;
+    otherQuote.lines.forEach((row) => lines.push(row));
+    note = otherQuote.note;
   }
   if ((service === "pretreat" || service === "post") && on("renewal")) {
     lines.push(["Yearly renewal", yearlyRenewal(sqft, num("lnft"), on("crawl"), num("miles"))]);
@@ -187,8 +453,16 @@ function quoteLines() {
 
 function showPrice() {
   const quote = quoteLines();
+  if (quote.unpriced === "wildlife") {
+    document.getElementById("out").textContent = "Ask the office before quoting wildlife.";
+    return quote;
+  }
   if (quote.unpriced) {
     document.getElementById("out").textContent = "Fleas does not have a confirmed price yet. Ask the office before quoting it.";
+    return quote;
+  }
+  if (quote.need) {
+    document.getElementById("out").textContent = quote.need;
     return quote;
   }
   if (!quote.lines.length) {
@@ -248,7 +522,9 @@ setupSign();
 
 function dollars(amount) {
   const n = Number(amount) || 0;
-  return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const sign = n < 0 ? "-" : "";
+  const body = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return sign + "$" + body;
 }
 
 function outsideOnlyTitle() {
@@ -274,8 +550,26 @@ function serviceTitle() {
     const names = { monthly: "monthly", bimonthly: "every other month", quarterly: "quarterly", semiannual: "every six months", annual: "once a year" };
     return freq === "onetime" ? "One-time pest" : "Pest service, " + names[freq];
   }
-  const names = { mosquito: "Mosquito", rodent: "Rodent stations", rat: "Rat cleanout", onetime: "One-time pest", fleas: "Fleas" };
-  return names[document.getElementById("other").value];
+  const kind = document.getElementById("other").value;
+  if (kind === "rodentService") return rodentServiceTitle();
+  if (kind === "leaves") return leafLoadTitle(intNum("quarters"));
+  const names = {
+    mosquito: "Mosquito",
+    rodent: "Rodent stations",
+    rat: "Rat cleanout",
+    onetime: "One-time pest",
+    fleas: "Fleas",
+    exclusion: "Rodent / foundation exclusion",
+    vapor: "Vapor barrier",
+    encapsulation: "Crawl-space encapsulation",
+    attic: "Attic insulation removal and replacement",
+    wildlifeInspect: "Wildlife inspection",
+    wildlife: "Wildlife trapping and removal",
+    bat: "Bat house",
+    driveway: "Driveway pressure washing",
+    gutter: "Gutter cleaning"
+  };
+  return names[kind];
 }
 
 function detailLines() {
@@ -293,6 +587,32 @@ function detailLines() {
   POST_EXTRAS.forEach((row) => add(row[0], row[1]));
   add("Travel miles, one way", "miles");
   add("Stations", "stations");
+  add("Openings", "openings");
+  add("Crawl square feet", "crawlsqft");
+  add("Attic square feet", "atticsqft");
+  add("Animals", "animals");
+  add("Bat houses", "bathouses");
+  add("Driveway square feet", "drivewaysqft");
+  add("Gutter linear feet", "gutterlnft");
+  const quarters = document.getElementById("quarters");
+  if (quarters) rows.push("Truck load: " + quarters.options[quarters.selectedIndex].text);
+  const dehu = document.getElementById("dehu");
+  if (dehu) rows.push("Crawl-space dehumidifier, installed: " + (dehu.value === "1" ? "Yes" : "No"));
+  const winter = document.getElementById("winter");
+  if (winter) rows.push("Winter-date prepay discount: " + (winter.value === "1" ? "Yes, 10% off" : "No"));
+  const waive = document.getElementById("waive");
+  if (waive) rows.push("Wildlife inspection waived: " + (waive.value === "1" ? "Yes" : "No"));
+  const prepay = document.getElementById("prepay");
+  if (prepay && prepay.value !== "off") {
+    const freqNow = document.getElementById("freq");
+    if (!freqNow || freqNow.value !== "onetime") {
+      rows.push("Annual prepay offer: " + (prepay.value === "year" ? "3% off a prepaid year" : "One free mosquito treatment"));
+    }
+  }
+  if (document.getElementById("service").value === "other") {
+    const freqNow = document.getElementById("freq");
+    if (freqNow) rows.push("How often: " + freqNow.options[freqNow.selectedIndex].text);
+  }
   const zip = normalizeZip(document.getElementById("czip").value);
   if (zip) rows.push("Zip code: " + zip);
   const crawl = document.getElementById("crawl");
@@ -573,7 +893,9 @@ function sendReady() {
   if (!normalizeZip(document.getElementById("czip").value)) return "Enter the 5-digit zip code. City of Jackson zip codes are 8% tax. Every other zip is 7%.";
   if (signatureBlank()) return "The customer needs to sign before this can go out.";
   const quote = quoteLines();
+  if (quote.unpriced === "wildlife") return "Ask the office before quoting wildlife.";
   if (quote.unpriced) return "Fleas does not have a confirmed price yet. Ask the office before quoting it.";
+  if (quote.need) return quote.need;
   if (!quote.lines.length) return "Show a price before sending the agreement.";
   return "";
 }
@@ -631,6 +953,7 @@ function agreementSubject() {
   const service = document.getElementById("service").value;
   if (service === "outside") return outsideOnlyTitle();
   if (service === "inside") return insideOnlyTitle();
+  if (service === "other" && namedSubjectKind(document.getElementById("other").value)) return serviceTitle();
   return "Family Termite service agreement";
 }
 
@@ -648,6 +971,8 @@ function mailtoOfficeCopy(quote) {
     ? "Office copy: " + outsideOnlyTitle() + " — " + name
     : service === "inside"
     ? "Office copy: " + insideOnlyTitle() + " — " + name
+    : service === "other" && namedSubjectKind(document.getElementById("other").value)
+    ? "Office copy: " + serviceTitle() + " — " + name
     : "Office copy: " + name;
   return "mailto:" + OFFICE + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
 }

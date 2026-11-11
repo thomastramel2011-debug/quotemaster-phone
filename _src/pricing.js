@@ -27,7 +27,32 @@ const RATES = {
   oneTimeTop: 349,
   postMin: 690,
   postPerFt: 4.745,
-  postDrillPerFt: 5.20
+  postDrillPerFt: 5.20,
+  // Approved winter rates, 2026-11-11. Existing keys above stay as they are.
+  rodentStationServiceEach: 15,
+  rodentStationServiceMin: 45,
+  exclusionMin: 495,
+  exclusionIncludedOpenings: 10,
+  exclusionEachExtra: 45,
+  vaporBarrierPerSqFt: 0.95,
+  encapsulationPerSqFt: 4.50,
+  encapsulationMin: 4500,
+  dehumidifierInstalled: 995,
+  atticRemovalPerSqFt: 1.50,
+  atticInsulationPerSqFt: 1.50,
+  atticCombinedMin: 4950,
+  wildlifeInspection: 149,
+  wildlifeFirstAnimal: 349,
+  wildlifeEachAdditional: 99,
+  batHouse: 40,
+  drivewayWashPerSqFt: 0.32,
+  drivewayWashMin: 165,
+  gutterCleaningPerLnFt: 0.70,
+  gutterCleaningMin: 125,
+  leafLimbQuarter: 275,
+  leafLimbHalf: 450,
+  leafLimbThreeQuarter: 600,
+  leafLimbFull: 725
 };
 
 function money(n) {
@@ -125,6 +150,119 @@ function postTreat(ln, drillLn) {
 }
 function pretreatPrice(sqft) {
   return money(Math.max(RATES.pretreatMin, sqft * RATES.pretreatPerSqFt));
+}
+
+// Cent rounding for a per-unit rate. Two-decimal rates stay exact.
+function pricedRate(rate, qty) {
+  const cents = Math.round(rate * 100);
+  return Math.round(Number(qty) * cents) / 100;
+}
+
+function applyPercent(amount, numerator, denominator) {
+  const cents = Math.round(Number(amount) * 100);
+  return Math.round(cents * numerator / denominator) / 100;
+}
+
+function rodentStationService(stations) {
+  const n = Math.floor(Number(stations));
+  const count = Number.isFinite(n) ? Math.max(0, n) : 0;
+  return money(Math.max(RATES.rodentStationServiceMin, RATES.rodentStationServiceEach * count));
+}
+
+function exclusionPrice(openings) {
+  const n = Math.floor(Number(openings));
+  const count = Number.isFinite(n) ? Math.max(0, n) : 0;
+  return money(RATES.exclusionMin + RATES.exclusionEachExtra * Math.max(0, count - RATES.exclusionIncludedOpenings));
+}
+
+function vaporBarrier(crawlSqft) {
+  const n = Number(crawlSqft);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return pricedRate(RATES.vaporBarrierPerSqFt, n);
+}
+
+function encapsulationPrice(crawlSqft) {
+  const n = Number(crawlSqft);
+  const qty = Number.isFinite(n) ? Math.max(0, n) : 0;
+  return money(Math.max(RATES.encapsulationMin, pricedRate(RATES.encapsulationPerSqFt, qty)));
+}
+
+function atticParts(sqft) {
+  const n = Number(sqft);
+  const qty = Number.isFinite(n) ? Math.max(0, n) : 0;
+  const removal = pricedRate(RATES.atticRemovalPerSqFt, qty);
+  const insulation = pricedRate(RATES.atticInsulationPerSqFt, qty);
+  const sum = money(removal + insulation);
+  const job = money(Math.max(RATES.atticCombinedMin, sum));
+  return {
+    removal: removal,
+    insulation: insulation,
+    sum: sum,
+    job: job,
+    minimumApplies: sum < RATES.atticCombinedMin
+  };
+}
+
+function atticJobPrice(sqft) {
+  return atticParts(sqft).job;
+}
+
+function wildlifeInspectionPrice(waived) {
+  return waived ? 0 : money(RATES.wildlifeInspection);
+}
+
+function wildlifeRemoval(animals) {
+  const n = Math.floor(Number(animals));
+  if (!Number.isFinite(n) || n < 1) return 0;
+  return money(RATES.wildlifeFirstAnimal + RATES.wildlifeEachAdditional * Math.max(0, n - 1));
+}
+
+function batHousePrice(count) {
+  const n = Math.floor(Number(count));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return money(RATES.batHouse * n);
+}
+
+function drivewayWash(sqft) {
+  const n = Number(sqft);
+  const qty = Number.isFinite(n) ? Math.max(0, n) : 0;
+  return money(Math.max(RATES.drivewayWashMin, pricedRate(RATES.drivewayWashPerSqFt, qty)));
+}
+
+function gutterCleaning(lnft) {
+  const n = Number(lnft);
+  const qty = Number.isFinite(n) ? Math.max(0, n) : 0;
+  return money(Math.max(RATES.gutterCleaningMin, pricedRate(RATES.gutterCleaningPerLnFt, qty)));
+}
+
+function leafLimbRemoval(quarters) {
+  const n = Math.floor(Number(quarters));
+  const table = {
+    1: RATES.leafLimbQuarter,
+    2: RATES.leafLimbHalf,
+    3: RATES.leafLimbThreeQuarter,
+    4: RATES.leafLimbFull
+  };
+  if (!table[n]) return 0;
+  return money(table[n]);
+}
+
+function winterDatePrice(amount) {
+  return applyPercent(amount, 90, 100);
+}
+
+function pestYearTotal(sqft, freq) {
+  const visits = { monthly: 12, bimonthly: 6, quarterly: 4, semiannual: 2, annual: 1 }[freq] || 0;
+  return money(contractPest(sqft) * visits);
+}
+
+function annualPrepayPrice(yearTotal) {
+  return applyPercent(yearTotal, 97, 100);
+}
+
+function offerWildlife() {
+  if (typeof OFFER_WILDLIFE === "undefined") return true;
+  return OFFER_WILDLIFE === true;
 }
 
 // Dollar amount from _src/prices.config.js. PLACEHOLDER and blank values are not quotes.
